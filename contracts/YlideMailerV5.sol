@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import './Owned.sol';
 
-contract YlideMailerV4 is Owned {
+contract YlideMailerV5 is Owned {
 
     uint128 public contentPartFee = 0;
     uint128 public recipientFee = 0;
@@ -11,6 +11,7 @@ contract YlideMailerV4 is Owned {
 
     event MailPush(uint256 indexed recipient, address indexed sender, uint256 msgId, bytes key);
     event MailContent(uint256 indexed msgId, address indexed sender, uint16 parts, uint16 partIdx, bytes content);
+    event MailBroadcast(address indexed sender, uint256 msgId);
 
     constructor() {
     }
@@ -88,5 +89,22 @@ contract YlideMailerV4 is Owned {
         if (contentPartFee + recipientFee * recipients.length > 0) {
             beneficiary.transfer(uint128(contentPartFee + recipientFee * recipients.length));
         }
+    }
+
+    function broadcastMail(uint32 uniqueId, bytes calldata content) public {
+        uint256 msgId = buildHash(uint256(uint160(msg.sender)), uniqueId, uint32(block.timestamp));
+
+        emit MailContent(msgId, msg.sender, 1, 0, content);
+        emit MailBroadcast(msg.sender, msgId);
+
+        if (contentPartFee > 0) {
+            beneficiary.transfer(uint128(contentPartFee));
+        }
+    }
+
+    function broadcastMailHeader(uint32 uniqueId, uint32 initTime) public {
+        uint256 msgId = buildHash(uint256(uint160(msg.sender)), uniqueId, initTime);
+
+        emit MailBroadcast(msg.sender, msgId);
     }
 }

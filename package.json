@@ -4,7 +4,9 @@
     "description": "",
     "main": "index.js",
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "deploy": "hardhat run --network localhost scripts/deploy.ts",
+        "build": "hardhat compile"
     },
     "repository": {
         "type": "git",
