@@ -14,6 +14,7 @@ contract YlideMailerV5 is Owned {
     event MailBroadcast(address indexed sender, uint256 msgId);
 
     constructor() {
+        beneficiary = payable(msg.sender);
     }
 
     function setFees(uint128 _contentPartFee, uint128 _recipientFee) public onlyOwner {
