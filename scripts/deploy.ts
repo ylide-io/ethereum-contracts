@@ -1,10 +1,12 @@
 import { ethers } from "hardhat";
 
 async function main() {
-    const YlideMailerV5 = await ethers.getContractFactory("YlideMailerV5");
-    const YlideRegistryV2 = await ethers.getContractFactory("YlideRegistryV2");
-    const mailer = await YlideMailerV5.deploy();
-    const registry = await YlideRegistryV2.deploy();
+    const YlideMailerV6 = await ethers.getContractFactory("YlideMailerV6");
+    const YlideRegistryV3 = await ethers.getContractFactory("YlideRegistryV3");
+    const mailer = await YlideMailerV6.deploy();
+    const registry = await YlideRegistryV3.deploy(
+        "0x0000000000000000000000000000000000000000"
+    );
 
     await mailer.deployed();
     await registry.deployed();
