@@ -11,13 +11,12 @@ struct RegistryEntry {
 }
 
 contract YlideRegistryV4 is Owned {
-    address public bonucer;
-
     uint256 public version = 4;
 
     event KeyAttached(address indexed addr, uint256 publicKey, uint64 keyVersion);
     
     mapping(address => RegistryEntry) public addressToPublicKey;
+    mapping(address => bool) public bonucers;
 
     YlideRegistryV4 previousContract;
 
@@ -26,9 +25,9 @@ contract YlideRegistryV4 is Owned {
 
     bytes16 private constant _SYMBOLS = "0123456789abcdef";
 
-    constructor(address previousContractAddress) {
+    constructor(address payable previousContractAddress) {
         previousContract = YlideRegistryV4(previousContractAddress);
-        bonucer = msg.sender;
+        bonucers[msg.sender] = true;
     }
 
     function getPublicKey(address addr) view public returns (RegistryEntry memory entry, uint contractVersion, address contractAddress) {
@@ -48,15 +47,15 @@ contract YlideRegistryV4 is Owned {
     }
 
     modifier onlyBonucer() {
-        if (msg.sender != bonucer) {
+        if (bonucers[msg.sender] != true) {
             revert();
         }
         _;
     }
 
-    function changeBonucer(address newBonucer) public onlyOwner {
+    function setBonucer(address newBonucer, bool val) public onlyOwner {
         if (newBonucer != address(0)) {
-            bonucer = newBonucer;
+            bonucers[newBonucer] = val;
         }
     }
 
@@ -104,6 +103,10 @@ contract YlideRegistryV4 is Owned {
         bytes32 prefixedHashMessage = keccak256(abi.encodePacked(prefix, _msg));
         address signer = ecrecover(prefixedHashMessage, _v, _r, _s);
         return signer;
+    }
+
+    receive() external payable {
+        // do nothing
     }
 
     function attachPublicKeyByAdmin(uint8 _v, bytes32 _r, bytes32 _s, address payable addr, uint256 publicKey, uint64 keyVersion, address payable referrer, bool payBonus) external payable onlyBonucer {
