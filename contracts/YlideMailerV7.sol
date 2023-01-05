@@ -8,26 +8,26 @@ contract YlideMailerV7 is Owned {
 
     uint256 public version = 7;
 
-    uint256 constant empt0 = 0x00ff000000ffffffffffffffffffffffffffffffffffffffffffffffffffffff;
-    uint256 constant empt1 = 0x00ffffffff000000ffffffffffffffffffffffffffffffffffffffffffffffff;
-    uint256 constant empt2 = 0x00ffffffffffffff000000ffffffffffffffffffffffffffffffffffffffffff;
-    uint256 constant empt3 = 0x00ffffffffffffffffffff000000ffffffffffffffffffffffffffffffffffff;
-    uint256 constant empt4 = 0x00ffffffffffffffffffffffffff000000ffffffffffffffffffffffffffffff;
-    uint256 constant empt5 = 0x00ffffffffffffffffffffffffffffffff000000ffffffffffffffffffffffff;
-    uint256 constant empt6 = 0x00ffffffffffffffffffffffffffffffffffffff000000ffffffffffffffffff;
-    uint256 constant empt7 = 0x00ffffffffffffffffffffffffffffffffffffffffffff000000ffffffffffff;
-    uint256 constant empt8 = 0x00ffffffffffffffffffffffffffffffffffffffffffffffffff000000ffffff;
-    uint256 constant empt9 = 0x00ffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000;
+    uint256 constant empty0 = 0x00ff000000ffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+    uint256 constant empty1 = 0x00ffffffff000000ffffffffffffffffffffffffffffffffffffffffffffffff;
+    uint256 constant empty2 = 0x00ffffffffffffff000000ffffffffffffffffffffffffffffffffffffffffff;
+    uint256 constant empty3 = 0x00ffffffffffffffffffff000000ffffffffffffffffffffffffffffffffffff;
+    uint256 constant empty4 = 0x00ffffffffffffffffffffffffff000000ffffffffffffffffffffffffffffff;
+    uint256 constant empty5 = 0x00ffffffffffffffffffffffffffffffff000000ffffffffffffffffffffffff;
+    uint256 constant empty6 = 0x00ffffffffffffffffffffffffffffffffffffff000000ffffffffffffffffff;
+    uint256 constant empty7 = 0x00ffffffffffffffffffffffffffffffffffffffffffff000000ffffffffffff;
+    uint256 constant empty8 = 0x00ffffffffffffffffffffffffffffffffffffffffffffffffff000000ffffff;
+    uint256 constant empty9 = 0x00ffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000;
 
-    uint256 constant indx1 = 0x0100000000000000000000000000000000000000000000000000000000000000;
-    uint256 constant indx2 = 0x0200000000000000000000000000000000000000000000000000000000000000;
-    uint256 constant indx3 = 0x0300000000000000000000000000000000000000000000000000000000000000;
-    uint256 constant indx4 = 0x0400000000000000000000000000000000000000000000000000000000000000;
-    uint256 constant indx5 = 0x0500000000000000000000000000000000000000000000000000000000000000;
-    uint256 constant indx6 = 0x0600000000000000000000000000000000000000000000000000000000000000;
-    uint256 constant indx7 = 0x0700000000000000000000000000000000000000000000000000000000000000;
-    uint256 constant indx8 = 0x0800000000000000000000000000000000000000000000000000000000000000;
-    uint256 constant indx9 = 0x0900000000000000000000000000000000000000000000000000000000000000;
+    uint256 constant index1 = 0x0100000000000000000000000000000000000000000000000000000000000000;
+    uint256 constant index2 = 0x0200000000000000000000000000000000000000000000000000000000000000;
+    uint256 constant index3 = 0x0300000000000000000000000000000000000000000000000000000000000000;
+    uint256 constant index4 = 0x0400000000000000000000000000000000000000000000000000000000000000;
+    uint256 constant index5 = 0x0500000000000000000000000000000000000000000000000000000000000000;
+    uint256 constant index6 = 0x0600000000000000000000000000000000000000000000000000000000000000;
+    uint256 constant index7 = 0x0700000000000000000000000000000000000000000000000000000000000000;
+    uint256 constant index8 = 0x0800000000000000000000000000000000000000000000000000000000000000;
+    uint256 constant index9 = 0x0900000000000000000000000000000000000000000000000000000000000000;
 
     uint256 public contentPartFee = 0;
     uint256 public recipientFee = 0;
@@ -59,34 +59,34 @@ contract YlideMailerV7 is Owned {
         val = val & 0xffffff; // 3 bytes
         uint8 currIdx = uint8(shiftRight(orig, 248));
         if (currIdx == 9) {
-            return (orig & empt0) | shiftLeft(val, 216);
+            return (orig & empty0) | shiftLeft(val, 216);
         } else
         if (currIdx == 0) {
-            return (orig & empt1) | indx1 | shiftLeft(val, 192);
+            return (orig & empty1) | index1 | shiftLeft(val, 192);
         } else
         if (currIdx == 1) {
-            return (orig & empt2) | indx2 | shiftLeft(val, 168);
+            return (orig & empty2) | index2 | shiftLeft(val, 168);
         } else
         if (currIdx == 2) {
-            return (orig & empt3) | indx3 | shiftLeft(val, 144);
+            return (orig & empty3) | index3 | shiftLeft(val, 144);
         } else
         if (currIdx == 3) {
-            return (orig & empt4) | indx4 | shiftLeft(val, 120);
+            return (orig & empty4) | index4 | shiftLeft(val, 120);
         } else
         if (currIdx == 4) {
-            return (orig & empt5) | indx5 | shiftLeft(val, 96);
+            return (orig & empty5) | index5 | shiftLeft(val, 96);
         } else
         if (currIdx == 5) {
-            return (orig & empt6) | indx6 | shiftLeft(val, 72);
+            return (orig & empty6) | index6 | shiftLeft(val, 72);
         } else
         if (currIdx == 6) {
-            return (orig & empt7) | indx7 | shiftLeft(val, 48);
+            return (orig & empty7) | index7 | shiftLeft(val, 48);
         } else
         if (currIdx == 7) {
-            return (orig & empt8) | indx8 | shiftLeft(val, 24);
+            return (orig & empty8) | index8 | shiftLeft(val, 24);
         } else
         if (currIdx == 8) {
-            return (orig & empt9) | indx9 | val;
+            return (orig & empty9) | index9 | val;
         }
     }
 
