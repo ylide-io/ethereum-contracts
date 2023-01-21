@@ -1,12 +1,23 @@
 {
     "name": "@ylide/ethereum-contracts",
-    "version": "1.0.0",
-    "description": "",
-    "main": "index.js",
+    "private": false,
+    "publishConfig": {
+        "access": "public"
+    },
+    "version": "0.0.8",
+    "description": "Ylide Protocol Ethereum Contracts",
+    "main": "lib/index.js",
+    "types": "lib/index.d.ts",
+    "files": [
+        "lib/**/*",
+        "typechain-types/**/*"
+    ],
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
         "deploy": "hardhat run --network localhost scripts/deploy.ts",
-        "build": "hardhat compile"
+        "gas-test": "hardhat compile && hardhat run --network localhost scripts/gasTest.ts",
+        "build": "hardhat compile && pnpm run compile-typechain",
+        "compile-typechain": "tsc --project tsconfig-typechain.json"
     },
     "repository": {
         "type": "git",
@@ -19,7 +30,12 @@
     },
     "homepage": "https://github.com/ylide-io/ethereum-contracts#readme",
     "devDependencies": {
-        "@nomicfoundation/hardhat-toolbox": "^1.0.2",
-        "hardhat": "^2.10.1"
+        "@nomicfoundation/hardhat-toolbox": "2.0.1",
+        "hardhat": "2.12.6"
+    },
+    "dependencies": {
+        "@ethersproject/abi": "5.7.0",
+        "@ethersproject/providers": "5.7.2",
+        "ethers": "5.7.2"
     }
 }

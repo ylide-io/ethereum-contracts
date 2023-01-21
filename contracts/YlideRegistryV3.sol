@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-// import './Owned.sol';
-
 struct RegistryEntry {
    uint256 publicKey;
    uint128 block;
@@ -10,7 +8,7 @@ struct RegistryEntry {
    uint64 keyVersion;
 }
 
-contract YlideRegistryV3 { //  is Owned
+contract YlideRegistryV3 {
 
     uint256 public version = 3;
 
@@ -19,9 +17,6 @@ contract YlideRegistryV3 { //  is Owned
     mapping(address => RegistryEntry) public addressToPublicKey;
 
     YlideRegistryV3 previousContract;
-
-    // uint256 public newcomerBonus = 0;
-    // uint256 public referrerBonus = 0;
 
     constructor(address previousContractAddress) {
         previousContract = YlideRegistryV3(previousContractAddress);
@@ -41,24 +36,4 @@ contract YlideRegistryV3 { //  is Owned
 
         emit KeyAttached(msg.sender, publicKey, keyVersion);
     }
-
-    // function setBonuses(uint256 _newcomerBonus, uint256 _referrerBonus) public onlyOwner {
-    //     newcomerBonus = _newcomerBonus;
-    //     referrerBonus = _referrerBonus;
-    // }
-
-    // function attachPublicKeyByAdmin(address payable addr, uint256 publicKey, address payable referrer) public onlyOwner {
-    //     // TODO: make disableable
-    //     require(referrer == address(0x0) || addressToPublicKey[referrer].keyVersion == 0, 'Referrer must be registered');
-    //     addressToPublicKey[addr] = RegistryEntry(publicKey, uint128(block.number), uint64(block.timestamp), 2);
-
-    //     emit KeyAttached(addr, publicKey, 2);
-
-    //     if (newcomerBonus != 0) {
-    //         addr.transfer(newcomerBonus);
-    //     }
-    //     if (referrer != address(0x0) && referrerBonus != 0) {
-    //         referrer.transfer(referrerBonus);
-    //     }
-    // }
 }

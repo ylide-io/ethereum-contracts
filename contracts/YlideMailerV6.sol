@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import './Owned.sol';
-import "hardhat/console.sol";
+import './helpers/Owned.sol';
 
 contract YlideMailerV6 is Owned {
 

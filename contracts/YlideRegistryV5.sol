@@ -10,16 +10,15 @@ struct RegistryEntry {
    uint64 keyVersion;
 }
 
-contract YlideRegistryV4 is Owned {
-    address public bonucer;
-
-    uint256 public version = 4;
+contract YlideRegistryV5 is Owned {
+    uint256 public version = 5;
 
     event KeyAttached(address indexed addr, uint256 publicKey, uint64 keyVersion);
     
     mapping(address => RegistryEntry) public addressToPublicKey;
+    mapping(address => bool) public bonucers;
 
-    YlideRegistryV4 previousContract;
+    YlideRegistryV5 previousContract;
 
     uint256 public newcomerBonus = 0;
     uint256 public referrerBonus = 0;
@@ -27,8 +26,8 @@ contract YlideRegistryV4 is Owned {
     bytes16 private constant _SYMBOLS = "0123456789abcdef";
 
     constructor(address payable previousContractAddress) {
-        previousContract = YlideRegistryV4(previousContractAddress);
-        bonucer = msg.sender;
+        previousContract = YlideRegistryV5(previousContractAddress);
+        bonucers[msg.sender] = true;
     }
 
     function getPublicKey(address addr) view public returns (RegistryEntry memory entry, uint contractVersion, address contractAddress) {
@@ -48,15 +47,15 @@ contract YlideRegistryV4 is Owned {
     }
 
     modifier onlyBonucer() {
-        if (msg.sender != bonucer) {
+        if (bonucers[msg.sender] != true) {
             revert();
         }
         _;
     }
 
-    function changeBonucer(address newBonucer) public onlyOwner {
+    function setBonucer(address newBonucer, bool val) public onlyOwner {
         if (newBonucer != address(0)) {
-            bonucer = newBonucer;
+            bonucers[newBonucer] = val;
         }
     }
 
