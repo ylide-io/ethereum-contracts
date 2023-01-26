@@ -30,8 +30,18 @@
     },
     "homepage": "https://github.com/ylide-io/ethereum-contracts#readme",
     "devDependencies": {
+        "@nomicfoundation/hardhat-chai-matchers": "1.0.5",
         "@nomicfoundation/hardhat-toolbox": "2.0.1",
-        "hardhat": "2.12.6"
+        "@nomiclabs/hardhat-ethers": "2.0.0",
+        "@nomiclabs/hardhat-etherscan": "3.1.5",
+        "@typechain/ethers-v5": "10.2.0",
+        "@typechain/hardhat": "6.1.5",
+        "chai": "4.3.7",
+        "hardhat": "2.12.6",
+        "hardhat-gas-reporter": "1.0.9",
+        "solidity-coverage": "0.8.2",
+        "typechain": "8.1.1",
+        "typescript": "4.9.4"
     },
     "dependencies": {
         "@ethersproject/abi": "5.7.0",
