@@ -40,7 +40,7 @@ contract YlideMailerV8 is Owned, FiduciaryDuty, BlockNumberRingBufferIndex {
      * addMailRecipients - for adding recipients to any message (multipart or not)
      */
 
-    function emitMailPush(uint256 rec, address sender, uint256 contentId, bytes memory key) internal virtual {
+    function emitMailPush(uint256 rec, address sender, uint256 contentId, bytes memory key) internal {
         uint256 current = recipientToMailIndex[rec];
         recipientToMailIndex[rec] = storeBlockNumber(current, block.number / 128);
         // write anything to map - 20k gas. think about it
@@ -91,7 +91,7 @@ contract YlideMailerV8 is Owned, FiduciaryDuty, BlockNumberRingBufferIndex {
      * sendBroadcastHeader - for emitting broadcast header after uploading all parts of the content
      */
 
-    function emitBroadcastPush(address sender, uint256 contentId) internal virtual {
+    function emitBroadcastPush(address sender, uint256 contentId) internal {
         uint256 current = senderToBroadcastIndex[sender];
         senderToBroadcastIndex[sender] = storeBlockNumber(current, block.number / 128);
         broadcastMessagesCount[sender] += 1;
