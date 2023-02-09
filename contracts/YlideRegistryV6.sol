@@ -9,13 +9,14 @@ struct RegistryEntry {
     uint256 publicKey;
     uint64 block;
     uint64 timestamp;
-    uint64 keyVersion;
+    uint32 keyVersion;
+    uint32 registrar;
 }
 
 contract YlideRegistryV6 is Owned, BlockNumberRingBufferIndex {
     uint256 public version = 6;
 
-    event KeyAttached(address indexed addr, uint256 publicKey, uint64 keyVersion, uint256 previousEventsIndex);
+    event KeyAttached(address indexed addr, uint256 publicKey, uint32 keyVersion, uint32 registrar, uint256 previousEventsIndex);
     
     mapping(address => RegistryEntry) public addressToPublicKey;
     mapping(address => bool) public bonucers;
@@ -96,29 +97,29 @@ contract YlideRegistryV6 is Owned, BlockNumberRingBufferIndex {
         // do nothing
     }
 
-    function internalKeyAttach(address addr, uint256 publicKey, uint64 keyVersion) internal {
+    function internalKeyAttach(address addr, uint256 publicKey, uint32 keyVersion, uint32 registrar) internal {
         uint256 index = 0;
         if (addressToPublicKey[addr].keyVersion != 0) {
             index = storeBlockNumber(addressToPublicKey[addr].previousEventsIndex, addressToPublicKey[addr].block / 128);
         }
 
-        addressToPublicKey[addr] = RegistryEntry(index, publicKey, uint64(block.number), uint64(block.timestamp), keyVersion);
-        emit KeyAttached(addr, publicKey, keyVersion, index);
+        addressToPublicKey[addr] = RegistryEntry(index, publicKey, uint64(block.number), uint64(block.timestamp), keyVersion, registrar);
+        emit KeyAttached(addr, publicKey, keyVersion, registrar, index);
     }
 
-    function attachPublicKey(uint256 publicKey, uint64 keyVersion) public {
+    function attachPublicKey(uint256 publicKey, uint32 keyVersion, uint32 registrar) public {
         require(keyVersion != 0, 'Key version must be above zero');
 
-        internalKeyAttach(msg.sender, publicKey, keyVersion);
+        internalKeyAttach(msg.sender, publicKey, keyVersion, registrar);
     }
 
-    function attachPublicKeyByAdmin(uint8 _v, bytes32 _r, bytes32 _s, address payable addr, uint256 publicKey, uint64 keyVersion, address payable referrer, bool payBonus) external payable onlyBonucer {
+    function attachPublicKeyByAdmin(uint8 _v, bytes32 _r, bytes32 _s, address payable addr, uint256 publicKey, uint32 keyVersion, uint32 registrar, address payable referrer, bool payBonus) external payable onlyBonucer {
         require(keyVersion != 0, 'Key version must be above zero');
         require(verifyMessage(bytes32(publicKey), _v, _r, _s) == addr, 'Signature does not match the user''s address');
         require(referrer == address(0x0) || addressToPublicKey[referrer].keyVersion != 0, 'Referrer must be registered');
         require(addr != address(0x0) && addressToPublicKey[addr].keyVersion == 0, 'Only new user key can be assigned by admin');
 
-        internalKeyAttach(addr, publicKey, keyVersion);
+        internalKeyAttach(addr, publicKey, keyVersion, registrar);
 
         if (payBonus && newcomerBonus != 0) {
             addr.transfer(newcomerBonus);
