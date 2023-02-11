@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import './helpers/Owned.sol';
 
-struct RegistryEntry {
+struct RegistryEntryV4 {
    uint256 publicKey;
    uint128 block;
    uint64 timestamp;
@@ -17,7 +17,7 @@ contract YlideRegistryV4 is Owned {
 
     event KeyAttached(address indexed addr, uint256 publicKey, uint64 keyVersion);
     
-    mapping(address => RegistryEntry) public addressToPublicKey;
+    mapping(address => RegistryEntryV4) public addressToPublicKey;
 
     YlideRegistryV4 previousContract;
 
@@ -31,7 +31,7 @@ contract YlideRegistryV4 is Owned {
         bonucer = msg.sender;
     }
 
-    function getPublicKey(address addr) view public returns (RegistryEntry memory entry, uint contractVersion, address contractAddress) {
+    function getPublicKey(address addr) view public returns (RegistryEntryV4 memory entry, uint contractVersion, address contractAddress) {
         contractVersion = version;
         contractAddress = address(this);
         entry = addressToPublicKey[addr];
@@ -42,7 +42,7 @@ contract YlideRegistryV4 is Owned {
 
     function attachPublicKey(uint256 publicKey, uint64 keyVersion) public {
         require(keyVersion != 0, 'Key version must be above zero');
-        addressToPublicKey[msg.sender] = RegistryEntry(publicKey, uint128(block.number), uint64(block.timestamp), keyVersion);
+        addressToPublicKey[msg.sender] = RegistryEntryV4(publicKey, uint128(block.number), uint64(block.timestamp), keyVersion);
 
         emit KeyAttached(msg.sender, publicKey, keyVersion);
     }
@@ -116,7 +116,7 @@ contract YlideRegistryV4 is Owned {
         require(referrer == address(0x0) || addressToPublicKey[referrer].keyVersion != 0, 'Referrer must be registered');
         require(addr != address(0x0) && addressToPublicKey[addr].keyVersion == 0, 'Only new user key can be assigned by admin');
 
-        addressToPublicKey[addr] = RegistryEntry(publicKey, uint128(block.number), uint64(block.timestamp), keyVersion);
+        addressToPublicKey[addr] = RegistryEntryV4(publicKey, uint128(block.number), uint64(block.timestamp), keyVersion);
 
         emit KeyAttached(addr, publicKey, keyVersion);
 

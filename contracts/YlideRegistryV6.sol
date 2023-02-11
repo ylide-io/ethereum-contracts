@@ -2,9 +2,10 @@
 pragma solidity ^0.8.9;
 
 import './helpers/Owned.sol';
+import './helpers/Terminatable.sol';
 import './helpers/BlockNumberRingBufferIndex.sol';
 
-struct RegistryEntry {
+struct RegistryEntryV6 {
     uint256 previousEventsIndex;
     uint256 publicKey;
     uint64 block;
@@ -13,12 +14,12 @@ struct RegistryEntry {
     uint32 registrar;
 }
 
-contract YlideRegistryV6 is Owned, BlockNumberRingBufferIndex {
+contract YlideRegistryV6 is Owned, Terminatable, BlockNumberRingBufferIndex {
     uint256 public version = 6;
 
     event KeyAttached(address indexed addr, uint256 publicKey, uint32 keyVersion, uint32 registrar, uint256 previousEventsIndex);
     
-    mapping(address => RegistryEntry) public addressToPublicKey;
+    mapping(address => RegistryEntryV6) public addressToPublicKey;
     mapping(address => bool) public bonucers;
 
     uint256 public newcomerBonus = 0;
@@ -30,7 +31,7 @@ contract YlideRegistryV6 is Owned, BlockNumberRingBufferIndex {
         bonucers[msg.sender] = true;
     }
 
-    function getPublicKey(address addr) view public returns (RegistryEntry memory entry) {
+    function getPublicKey(address addr) view public returns (RegistryEntryV6 memory entry) {
         entry = addressToPublicKey[addr];
     }
 
@@ -41,13 +42,13 @@ contract YlideRegistryV6 is Owned, BlockNumberRingBufferIndex {
         _;
     }
 
-    function setBonucer(address newBonucer, bool val) public onlyOwner {
+    function setBonucer(address newBonucer, bool val) public onlyOwner notTerminated {
         if (newBonucer != address(0)) {
             bonucers[newBonucer] = val;
         }
     }
 
-    function setBonuses(uint256 _newcomerBonus, uint256 _referrerBonus) public onlyOwner {
+    function setBonuses(uint256 _newcomerBonus, uint256 _referrerBonus) public onlyOwner notTerminated {
         newcomerBonus = _newcomerBonus;
         referrerBonus = _referrerBonus;
     }
@@ -103,17 +104,17 @@ contract YlideRegistryV6 is Owned, BlockNumberRingBufferIndex {
             index = storeBlockNumber(addressToPublicKey[addr].previousEventsIndex, addressToPublicKey[addr].block / 128);
         }
 
-        addressToPublicKey[addr] = RegistryEntry(index, publicKey, uint64(block.number), uint64(block.timestamp), keyVersion, registrar);
+        addressToPublicKey[addr] = RegistryEntryV6(index, publicKey, uint64(block.number), uint64(block.timestamp), keyVersion, registrar);
         emit KeyAttached(addr, publicKey, keyVersion, registrar, index);
     }
 
-    function attachPublicKey(uint256 publicKey, uint32 keyVersion, uint32 registrar) public {
+    function attachPublicKey(uint256 publicKey, uint32 keyVersion, uint32 registrar) public notTerminated {
         require(keyVersion != 0, 'Key version must be above zero');
 
         internalKeyAttach(msg.sender, publicKey, keyVersion, registrar);
     }
 
-    function attachPublicKeyByAdmin(uint8 _v, bytes32 _r, bytes32 _s, address payable addr, uint256 publicKey, uint32 keyVersion, uint32 registrar, address payable referrer, bool payBonus) external payable onlyBonucer {
+    function attachPublicKeyByAdmin(uint8 _v, bytes32 _r, bytes32 _s, address payable addr, uint256 publicKey, uint32 keyVersion, uint32 registrar, address payable referrer, bool payBonus) external payable onlyBonucer notTerminated {
         require(keyVersion != 0, 'Key version must be above zero');
         require(verifyMessage(bytes32(publicKey), _v, _r, _s) == addr, 'Signature does not match the user''s address');
         require(referrer == address(0x0) || addressToPublicKey[referrer].keyVersion != 0, 'Referrer must be registered');

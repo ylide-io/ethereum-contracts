@@ -2,10 +2,11 @@
 pragma solidity ^0.8.9;
 
 import './helpers/Owned.sol';
+import './helpers/Terminatable.sol';
 import './helpers/FiduciaryDuty.sol';
 import './helpers/BlockNumberRingBufferIndex.sol';
 
-contract YlideMailerV8 is Owned, FiduciaryDuty, BlockNumberRingBufferIndex {
+contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBufferIndex {
 
     uint256 constant public version = 8;
 
@@ -48,7 +49,7 @@ contract YlideMailerV8 is Owned, FiduciaryDuty, BlockNumberRingBufferIndex {
         emit MailPush(rec, sender, contentId, current, key);
     }
 
-    function sendSmallMail(uint256 uniqueId, uint256 recipient, bytes calldata key, bytes calldata content) public returns (uint256) {
+    function sendSmallMail(uint256 uniqueId, uint256 recipient, bytes calldata key, bytes calldata content) public notTerminated returns (uint256) {
         uint256 contentId = buildContentId(msg.sender, uniqueId, block.number, 1, 0);
 
         emit MessageContent(contentId, msg.sender, 1, 0, content);
@@ -59,7 +60,7 @@ contract YlideMailerV8 is Owned, FiduciaryDuty, BlockNumberRingBufferIndex {
         return contentId;
     }
 
-    function sendBulkMail(uint256 uniqueId, uint256[] calldata recipients, bytes[] calldata keys, bytes calldata content) public returns (uint256) {
+    function sendBulkMail(uint256 uniqueId, uint256[] calldata recipients, bytes[] calldata keys, bytes calldata content) public notTerminated returns (uint256) {
         uint256 contentId = buildContentId(msg.sender, uniqueId, block.number, 1, 0);
 
         emit MessageContent(contentId, msg.sender, 1, 0, content);
@@ -73,7 +74,7 @@ contract YlideMailerV8 is Owned, FiduciaryDuty, BlockNumberRingBufferIndex {
         return contentId;
     }
 
-    function addMailRecipients(uint256 uniqueId, uint256 firstBlockNumber, uint16 partsCount, uint16 blockCountLock, uint256[] calldata recipients, bytes[] calldata keys) public returns (uint256) {
+    function addMailRecipients(uint256 uniqueId, uint256 firstBlockNumber, uint16 partsCount, uint16 blockCountLock, uint256[] calldata recipients, bytes[] calldata keys) public notTerminated returns (uint256) {
         uint256 contentId = buildContentId(msg.sender, uniqueId, firstBlockNumber, partsCount, blockCountLock);
         for (uint i = 0; i < recipients.length; i++) {
             emitMailPush(recipients[i], msg.sender, contentId, keys[i]);
@@ -98,7 +99,7 @@ contract YlideMailerV8 is Owned, FiduciaryDuty, BlockNumberRingBufferIndex {
         emit BroadcastPush(sender, contentId, current);
     }
 
-    function sendBroadcast(uint256 uniqueId, bytes calldata content) public returns (uint256) {
+    function sendBroadcast(uint256 uniqueId, bytes calldata content) public notTerminated returns (uint256) {
         uint256 contentId = buildContentId(msg.sender, uniqueId, block.number, 1, 0);
 
         emit MessageContent(contentId, msg.sender, 1, 0, content);
@@ -109,7 +110,7 @@ contract YlideMailerV8 is Owned, FiduciaryDuty, BlockNumberRingBufferIndex {
         return contentId;
     }
 
-    function sendBroadcastHeader(uint256 uniqueId, uint256 firstBlockNumber, uint16 partsCount, uint16 blockCountLock) public returns (uint256) {
+    function sendBroadcastHeader(uint256 uniqueId, uint256 firstBlockNumber, uint16 partsCount, uint16 blockCountLock) public notTerminated returns (uint256) {
         uint256 contentId = buildContentId(msg.sender, uniqueId, firstBlockNumber, partsCount, blockCountLock);
         emitBroadcastPush(msg.sender, contentId);
 
@@ -121,7 +122,7 @@ contract YlideMailerV8 is Owned, FiduciaryDuty, BlockNumberRingBufferIndex {
     /* ---------------------------------------------- */
 
     // For sending content part - for broadcast or not
-    function sendMessageContentPart(uint256 uniqueId, uint256 firstBlockNumber, uint256 blockCountLock, uint16 parts, uint16 partIdx, bytes calldata content) public returns (uint256) {
+    function sendMessageContentPart(uint256 uniqueId, uint256 firstBlockNumber, uint256 blockCountLock, uint16 parts, uint16 partIdx, bytes calldata content) public notTerminated returns (uint256) {
         if (block.number < firstBlockNumber) {
             revert('Number less than firstBlockNumber');
         }
