@@ -6,20 +6,41 @@ import './helpers/Terminatable.sol';
 import './helpers/FiduciaryDuty.sol';
 import './helpers/BlockNumberRingBufferIndex.sol';
 
+struct FeedV8 {
+    address owner;
+    bool isPublic;
+    mapping (address => bool) writers;
+    uint256 messagesIndex;
+    uint256 messagesCount;
+}
+
 contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBufferIndex {
 
     uint256 constant public version = 8;
 
     mapping (uint256 => uint256) public recipientToMailIndex;
-    mapping (address => uint256) public senderToBroadcastIndex;
-
     mapping (uint256 => uint256) public recipientMessagesCount;
-    mapping (address => uint256) public broadcastMessagesCount;
+
+    mapping (uint256 => FeedV8) public feeds;
+
+    uint256 public lastFeedId = 1;
 
     event MailPush(uint256 indexed recipient, address indexed sender, uint256 contentId, uint256 previousEventsIndex, bytes key);
-    event BroadcastPush(address indexed sender, uint256 contentId, uint256 previousEventsIndex);
+    event BroadcastPush(address indexed sender, uint256 indexed feedId, uint256 contentId, uint256 previousEventsIndex);
     
     event MessageContent(uint256 indexed contentId, address indexed sender, uint16 parts, uint16 partIdx, bytes content);
+    
+    event FeedCreated(uint256 indexed feedId, address indexed creator);
+    event FeedPublicityChanged(uint256 indexed feedId, bool isPublic);
+    event FeedOwnershipTransferred(uint256 indexed feedId, address newOwner);
+    event FeedWriterChange(uint256 indexed feedId, address indexed writer, bool status);
+
+    constructor() {
+    }
+
+    function isFeedWriter(uint256 feedId, address addr) public view returns (bool) {
+        return feeds[feedId].writers[addr];
+    }
 
     function buildContentId(address senderAddress, uint256 uniqueId, uint256 firstBlockNumber, uint256 partsCount, uint256 blockCountLock) public pure returns (uint256) {
         uint256 _hash = uint256(sha256(bytes.concat(bytes32(uint256(uint160(senderAddress))), bytes32(uniqueId), bytes32(firstBlockNumber))));
@@ -92,27 +113,36 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
      * sendBroadcastHeader - for emitting broadcast header after uploading all parts of the content
      */
 
-    function emitBroadcastPush(address sender, uint256 contentId) internal {
-        uint256 current = senderToBroadcastIndex[sender];
-        senderToBroadcastIndex[sender] = storeBlockNumber(current, block.number / 128);
-        broadcastMessagesCount[sender] += 1;
-        emit BroadcastPush(sender, contentId, current);
+    function emitBroadcastPush(address sender, uint256 feedId, uint256 contentId) internal {
+        uint256 current = feeds[feedId].messagesIndex;
+        feeds[feedId].messagesIndex = storeBlockNumber(current, block.number / 128);
+        feeds[feedId].messagesCount += 1;
+        emit BroadcastPush(sender, feedId, contentId, current);
     }
 
-    function sendBroadcast(uint256 uniqueId, bytes calldata content) public notTerminated returns (uint256) {
+    function sendBroadcast(uint256 feedId, uint256 uniqueId, bytes calldata content) public notTerminated returns (uint256) {
+        if (!feeds[feedId].isPublic && feeds[feedId].writers[msg.sender] != true) {
+            revert('You are not allowed to write to this feed');
+        }
+
         uint256 contentId = buildContentId(msg.sender, uniqueId, block.number, 1, 0);
 
         emit MessageContent(contentId, msg.sender, 1, 0, content);
-        emitBroadcastPush(msg.sender, contentId);
+        emitBroadcastPush(msg.sender, feedId, contentId);
 
         payOut(1, 0, 1);
 
         return contentId;
     }
 
-    function sendBroadcastHeader(uint256 uniqueId, uint256 firstBlockNumber, uint16 partsCount, uint16 blockCountLock) public notTerminated returns (uint256) {
+    function sendBroadcastHeader(uint256 feedId, uint256 uniqueId, uint256 firstBlockNumber, uint16 partsCount, uint16 blockCountLock) public notTerminated returns (uint256) {
+        if (!feeds[feedId].isPublic && feeds[feedId].writers[msg.sender] != true) {
+            revert('You are not allowed to write to this feed');
+        }
+
         uint256 contentId = buildContentId(msg.sender, uniqueId, firstBlockNumber, partsCount, blockCountLock);
-        emitBroadcastPush(msg.sender, contentId);
+
+        emitBroadcastPush(msg.sender, feedId, contentId);
 
         payOut(0, 0, 1);
 
@@ -136,5 +166,57 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         payOut(1, 0, 0);
 
         return contentId;
+    }
+
+    /* ---------------------------------------------- */
+
+    // Feed management:
+    function createFeed(bool isPublic) public {
+        uint256 feedId = uint256(keccak256(abi.encodePacked(address(this), block.number, lastFeedId)));
+        lastFeedId += 1;
+        
+        feeds[feedId].owner = msg.sender;
+        feeds[feedId].isPublic = isPublic;
+        feeds[feedId].writers[msg.sender] = true;
+        feeds[feedId].messagesIndex = 0;
+        feeds[feedId].messagesCount = 0;
+
+        emit FeedCreated(feedId, msg.sender);
+    }
+
+    function transferFeedOwnership(uint256 feedId, address newOwner) public {
+        if (feeds[feedId].owner != msg.sender) {
+            revert('You are not allowed to transfer ownership of this feed');
+        }
+
+        feeds[feedId].owner = newOwner;
+        emit FeedOwnershipTransferred(feedId, newOwner);
+    }
+
+    function changeFeedPublicity(uint256 feedId, bool isPublic) public {
+        if (feeds[feedId].owner != msg.sender) {
+            revert('You are not allowed to change publicity of this feed');
+        }
+
+        feeds[feedId].isPublic = isPublic;
+        emit FeedPublicityChanged(feedId, isPublic);
+    }
+
+    function addFeedWriter(uint256 feedId, address writer) public {
+        if (feeds[feedId].owner != msg.sender) {
+            revert('You are not allowed to add writers to this feed');
+        }
+
+        feeds[feedId].writers[writer] = true;
+        emit FeedWriterChange(feedId, writer, true);
+    }
+
+    function removeFeedWriter(uint256 feedId, address writer) public {
+        if (feeds[feedId].owner != msg.sender) {
+            revert('You are not allowed to remove writers from this feed');
+        }
+
+        delete feeds[feedId].writers[writer];
+        emit FeedWriterChange(feedId, writer, false);
     }
 }
