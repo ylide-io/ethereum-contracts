@@ -27,8 +27,6 @@ struct MailingFeedV8 {
 
     uint256 recipientFee;
 
-    mapping (uint256 => bool) recipientParticipationStatus;
-
     mapping (uint256 => uint256) recipientToMailIndex;
     mapping (uint256 => uint256) recipientMessagesCount;
 
@@ -43,7 +41,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
     mapping (uint256 => MailingFeedV8) public mailingFeeds;
     mapping (uint256 => BroadcastFeedV8) public broadcastFeeds;
 
-    mapping (uint256 => uint256) recipientToMailingFeedJoinEventsIndex;
+    mapping (uint256 => uint256) public recipientToMailingFeedJoinEventsIndex;
 
     uint256 public lastFeedId = 1;
 
@@ -72,12 +70,16 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         bytes content
     );
     
-    event FeedCreated(uint256 indexed feedId, address indexed creator);
-    event FeedOwnershipTransferred(uint256 indexed feedId, address newOwner);
-    event FeedBeneficiaryChanged(uint256 indexed feedId, address newBeneficiary);
+    event MailingFeedCreated(uint256 indexed feedId, address indexed creator);
+    event BroadcastFeedCreated(uint256 indexed feedId, address indexed creator);
     
-    event FeedPublicityChanged(uint256 indexed feedId, bool isPublic);
-    event FeedWriterChange(uint256 indexed feedId, address indexed writer, bool status);
+    event MailingFeedOwnershipTransferred(uint256 indexed feedId, address newOwner);
+    event BroadcastFeedOwnershipTransferred(uint256 indexed feedId, address newOwner);
+
+    event MailingFeedBeneficiaryChanged(uint256 indexed feedId, address newBeneficiary);
+    
+    event BroadcastFeedPublicityChanged(uint256 indexed feedId, bool isPublic);
+    event BroadcastFeedWriterChange(uint256 indexed feedId, address indexed writer, bool status);
 
     // event ThreadCreated(uint256 indexed feedId, uint256 indexed threadId, address indexed creator);
     // event ThreadJoined(uint256 indexed feedId, uint256 indexed threadId, uint256 indexed newParticipant, uint256 previousThreadJoinEventsIndex);
@@ -85,11 +87,14 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
     event MailingFeedJoined(uint256 indexed feedId, uint256 indexed newParticipant, uint256 previousFeedJoinEventsIndex);
 
     constructor() {
-        mailingFeeds[0].owner = msg.sender;
+        mailingFeeds[0].owner = msg.sender; // regular mail
         mailingFeeds[0].beneficiary = payable(msg.sender);
 
-        mailingFeeds[1].owner = msg.sender;
+        mailingFeeds[1].owner = msg.sender; // otc mail
         mailingFeeds[1].beneficiary = payable(msg.sender);
+
+        mailingFeeds[2].owner = msg.sender; // system messages
+        mailingFeeds[2].beneficiary = payable(msg.sender);
 
         broadcastFeeds[0].owner = msg.sender;
         broadcastFeeds[0].isPublic = false;
@@ -114,10 +119,6 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         return broadcastFeeds[feedId].writers[addr];
     }
 
-    function isMailingFeedRecipient(uint256 feedId, uint256 recipient) public view returns (bool) {
-        return mailingFeeds[feedId].recipientParticipationStatus[recipient];
-    }
-
     function getMailingFeedRecipientIndex(uint256 feedId, uint256 recipient) public view returns (uint256) {
         return mailingFeeds[feedId].recipientToMailIndex[recipient];
     }
@@ -132,6 +133,10 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
 			mailingFeeds[feedId].beneficiary.transfer(totalValue);
 		}
 	}
+
+    receive() external payable {
+        // do nothing
+    }
 
     function buildContentId(address senderAddress, uint256 uniqueId, uint256 firstBlockNumber, uint256 partsCount, uint256 blockCountLock) public pure returns (uint256) {
         uint256 _hash = uint256(sha256(bytes.concat(bytes32(uint256(uint160(senderAddress))), bytes32(uniqueId), bytes32(firstBlockNumber))));
@@ -158,8 +163,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
             revert("Feed does not exist");
         }
         uint256 shrinkedBlock = block.number / 128;
-        if (mailingFeeds[feedId].recipientParticipationStatus[rec] == false) {
-            mailingFeeds[feedId].recipientParticipationStatus[rec] = true;
+        if (mailingFeeds[feedId].recipientMessagesCount[rec] == 0) {
             uint256 currentMailingFeedJoinEventsIndex = recipientToMailingFeedJoinEventsIndex[rec];
             recipientToMailingFeedJoinEventsIndex[rec] = storeBlockNumber(currentMailingFeedJoinEventsIndex, shrinkedBlock);
             emit MailingFeedJoined(feedId, rec, currentMailingFeedJoinEventsIndex);
@@ -184,7 +188,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         emit MailPush(rec, feedId, sender, contentId, currentFeed, key);
     }
 
-    function sendSmallMail(uint256 feedId, uint256 uniqueId, uint256 recipient, bytes calldata key, bytes calldata content) public notTerminated returns (uint256) {
+    function sendSmallMail(uint256 feedId, uint256 uniqueId, uint256 recipient, bytes calldata key, bytes calldata content) public payable notTerminated returns (uint256) {
         uint256 contentId = buildContentId(msg.sender, uniqueId, block.number, 1, 0);
 
         emit MessageContent(contentId, msg.sender, 1, 0, content);
@@ -196,7 +200,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         return contentId;
     }
 
-    function sendBulkMail(uint256 feedId, uint256 uniqueId, uint256[] calldata recipients, bytes[] calldata keys, bytes calldata content) public notTerminated returns (uint256) {
+    function sendBulkMail(uint256 feedId, uint256 uniqueId, uint256[] calldata recipients, bytes[] calldata keys, bytes calldata content) public payable notTerminated returns (uint256) {
         uint256 contentId = buildContentId(msg.sender, uniqueId, block.number, 1, 0);
 
         emit MessageContent(contentId, msg.sender, 1, 0, content);
@@ -211,7 +215,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         return contentId;
     }
 
-    function addMailRecipients(uint256 feedId, uint256 uniqueId, uint256 firstBlockNumber, uint16 partsCount, uint16 blockCountLock, uint256[] calldata recipients, bytes[] calldata keys) public notTerminated returns (uint256) {
+    function addMailRecipients(uint256 feedId, uint256 uniqueId, uint256 firstBlockNumber, uint16 partsCount, uint16 blockCountLock, uint256[] calldata recipients, bytes[] calldata keys) public payable notTerminated returns (uint256) {
         uint256 contentId = buildContentId(msg.sender, uniqueId, firstBlockNumber, partsCount, blockCountLock);
         for (uint i = 0; i < recipients.length; i++) {
             emitMailPush(feedId, recipients[i], msg.sender, contentId, keys[i]);
@@ -237,7 +241,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         emit BroadcastPush(sender, feedId, contentId, current);
     }
 
-    function sendBroadcast(uint256 feedId, uint256 uniqueId, bytes calldata content) public notTerminated returns (uint256) {
+    function sendBroadcast(uint256 feedId, uint256 uniqueId, bytes calldata content) public payable notTerminated returns (uint256) {
         if (!broadcastFeeds[feedId].isPublic && broadcastFeeds[feedId].writers[msg.sender] != true) {
             revert('You are not allowed to write to this feed');
         }
@@ -252,7 +256,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         return contentId;
     }
 
-    function sendBroadcastHeader(uint256 feedId, uint256 uniqueId, uint256 firstBlockNumber, uint16 partsCount, uint16 blockCountLock) public notTerminated returns (uint256) {
+    function sendBroadcastHeader(uint256 feedId, uint256 uniqueId, uint256 firstBlockNumber, uint16 partsCount, uint16 blockCountLock) public payable notTerminated returns (uint256) {
         if (!broadcastFeeds[feedId].isPublic && broadcastFeeds[feedId].writers[msg.sender] != true) {
             revert('You are not allowed to write to this feed');
         }
@@ -269,7 +273,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
     /* ---------------------------------------------- */
 
     // For sending content part - for broadcast or not
-    function sendMessageContentPart(uint256 uniqueId, uint256 firstBlockNumber, uint256 blockCountLock, uint16 parts, uint16 partIdx, bytes calldata content) public notTerminated returns (uint256) {
+    function sendMessageContentPart(uint256 uniqueId, uint256 firstBlockNumber, uint256 blockCountLock, uint16 parts, uint16 partIdx, bytes calldata content) public payable notTerminated returns (uint256) {
         if (block.number < firstBlockNumber) {
             revert('Number less than firstBlockNumber');
         }
@@ -288,7 +292,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
     /* ---------------------------------------------- */
 
     // Feed management:
-    function createMailingFeed() public returns (uint256) {
+    function createMailingFeed() public payable returns (uint256) {
         uint256 feedId = uint256(keccak256(abi.encodePacked(address(this), block.number, lastFeedId)));
         lastFeedId += 1;
         
@@ -297,7 +301,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
 
         payForMailingFeedCreation();
 
-        emit FeedCreated(feedId, msg.sender);
+        emit MailingFeedCreated(feedId, msg.sender);
 
         return feedId;
     }
@@ -308,7 +312,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         }
 
         mailingFeeds[feedId].owner = newOwner;
-        emit FeedOwnershipTransferred(feedId, newOwner);
+        emit MailingFeedOwnershipTransferred(feedId, newOwner);
     }
 
     function setMailingFeedBeneficiary(uint256 feedId, address payable newBeneficiary) public {
@@ -317,10 +321,10 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         }
 
         mailingFeeds[feedId].beneficiary = newBeneficiary;
-        emit FeedBeneficiaryChanged(feedId, newBeneficiary);
+        emit MailingFeedBeneficiaryChanged(feedId, newBeneficiary);
     }
 
-    function createBroadcastFeed(bool isPublic) public returns (uint256) {
+    function createBroadcastFeed(bool isPublic) public payable returns (uint256) {
         uint256 feedId = uint256(keccak256(abi.encodePacked(address(this), block.number, lastFeedId)));
         lastFeedId += 1;
         
@@ -332,7 +336,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
 
         payForBroadcastFeedCreation();
 
-        emit FeedCreated(feedId, msg.sender);
+        emit BroadcastFeedCreated(feedId, msg.sender);
 
         return feedId;
     }
@@ -343,7 +347,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         }
 
         broadcastFeeds[feedId].owner = newOwner;
-        emit FeedOwnershipTransferred(feedId, newOwner);
+        emit BroadcastFeedOwnershipTransferred(feedId, newOwner);
     }
 
     function changeBroadcastFeedPublicity(uint256 feedId, bool isPublic) public {
@@ -352,7 +356,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         }
 
         broadcastFeeds[feedId].isPublic = isPublic;
-        emit FeedPublicityChanged(feedId, isPublic);
+        emit BroadcastFeedPublicityChanged(feedId, isPublic);
     }
 
     function addBroadcastFeedWriter(uint256 feedId, address writer) public {
@@ -361,7 +365,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         }
 
         broadcastFeeds[feedId].writers[writer] = true;
-        emit FeedWriterChange(feedId, writer, true);
+        emit BroadcastFeedWriterChange(feedId, writer, true);
     }
 
     function removeBroadcastFeedWriter(uint256 feedId, address writer) public {
@@ -370,6 +374,6 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         }
 
         delete broadcastFeeds[feedId].writers[writer];
-        emit FeedWriterChange(feedId, writer, false);
+        emit BroadcastFeedWriterChange(feedId, writer, false);
     }
 }
