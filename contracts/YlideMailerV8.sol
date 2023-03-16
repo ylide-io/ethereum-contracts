@@ -166,12 +166,19 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         return mailingFeeds[feedId].recipientMessagesCount[recipient];
     }
 
-    function payOutFeed(uint256 feedId, uint256 recipients) internal virtual {
+    function payOutMailingFeed(uint256 feedId, uint256 recipients) internal virtual {
 		uint256 totalValue = mailingFeeds[feedId].recipientFee * recipients;
 		if (totalValue > 0) {
 			mailingFeeds[feedId].beneficiary.transfer(totalValue);
 		}
 	}
+
+    function payOutBroadcastFeed(uint256 feedId, uint256 broadcasts) internal virtual {
+        uint256 totalValue = broadcastFeeds[feedId].broadcastFee * broadcasts;
+		if (totalValue > 0) {
+			broadcastFeeds[feedId].beneficiary.transfer(totalValue);
+		}
+    }
 
     receive() external payable {
         // do nothing
@@ -234,7 +241,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         emitMailPush(feedId, recipient, msg.sender, contentId, key);
 
         payOut(1, 1, 0);
-        payOutFeed(feedId, 1);
+        payOutMailingFeed(feedId, 1);
 
         return contentId;
     }
@@ -249,7 +256,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         }
 
         payOut(1, recipients.length, 0);
-        payOutFeed(feedId, recipients.length);
+        payOutMailingFeed(feedId, recipients.length);
 
         return contentId;
     }
@@ -261,7 +268,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         }
 
         payOut(0, recipients.length, 0);
-        payOutFeed(feedId, recipients.length);
+        payOutMailingFeed(feedId, recipients.length);
 
         return contentId;
     }
@@ -291,6 +298,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         emitBroadcastPush(msg.sender, feedId, contentId);
 
         payOut(1, 0, 1);
+        payOutBroadcastFeed(feedId, 1);
 
         return contentId;
     }
@@ -305,6 +313,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         emitBroadcastPush(msg.sender, feedId, contentId);
 
         payOut(0, 0, 1);
+        payOutBroadcastFeed(feedId, 1);
 
         return contentId;
     }
