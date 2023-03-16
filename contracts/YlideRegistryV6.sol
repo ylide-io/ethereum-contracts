@@ -53,28 +53,7 @@ contract YlideRegistryV6 is Owned, Terminatable, BlockNumberRingBufferIndex {
         referrerBonus = _referrerBonus;
     }
 
-    function toString(uint256 value) internal pure returns (string memory) {
-        unchecked {
-            string memory buffer = new string(10);
-            uint256 ptr;
-            /// @solidity memory-safe-assembly
-            assembly {
-                ptr := add(buffer, add(32, 10))
-            }
-            while (true) {
-                ptr--;
-                /// @solidity memory-safe-assembly
-                assembly {
-                    mstore8(ptr, byte(mod(value, 10), _SYMBOLS))
-                }
-                value /= 10;
-                if (value == 0) break;
-            }
-            return buffer;
-        }
-    }
-
-    function iToHex(bytes32 buffer) public pure returns (bytes memory) {
+    function uint256ToHex(bytes32 buffer) public pure returns (bytes memory) {
         bytes memory converted = new bytes(64);
         bytes memory _base = "0123456789abcdef";
 
@@ -86,9 +65,40 @@ contract YlideRegistryV6 is Owned, Terminatable, BlockNumberRingBufferIndex {
         return converted;
     }
 
-    function verifyMessage(bytes32 publicKey, uint8 _v, bytes32 _r, bytes32 _s) public pure returns (address) {
-        bytes memory prefix = "\x19Ethereum Signed Message:\n64";
-        bytes memory _msg = iToHex(publicKey);
+    function uint32ToHex(bytes4 buffer) public pure returns (bytes memory) {
+        bytes memory converted = new bytes(8);
+        bytes memory _base = "0123456789abcdef";
+
+        for (uint8 i = 0; i < 4; i++) {
+            converted[i * 2] = _base[uint8(buffer[i]) / _base.length];
+            converted[i * 2 + 1] = _base[uint8(buffer[i]) % _base.length];
+        }
+
+        return converted;
+    }
+
+    function uint64ToHex(bytes8 buffer) public pure returns (bytes memory) {
+        bytes memory converted = new bytes(16);
+        bytes memory _base = "0123456789abcdef";
+
+        for (uint8 i = 0; i < 8; i++) {
+            converted[i * 2] = _base[uint8(buffer[i]) / _base.length];
+            converted[i * 2 + 1] = _base[uint8(buffer[i]) % _base.length];
+        }
+
+        return converted;
+    }
+
+    function verifyMessage(bytes32 publicKey, uint8 _v, bytes32 _r, bytes32 _s, uint32 registrar) public view returns (address) {
+        bytes memory prefix = "\x19Ethereum Signed Message:\n330";
+        // (121 + 2) + (14 + 64 + 1) + (13 + 8 + 1) + (12 + 64 + 1) + (13 + 16 + 0)
+        bytes memory _msg = abi.encodePacked(
+            "I authorize Ylide Faucet to publish my public key on my behalf to eliminate gas costs on my transaction for five minutes.\n\n", 
+            "Public key: 0x", uint256ToHex(publicKey), "\n",
+            "Registrar: 0x", uint32ToHex(bytes4(registrar)), "\n",
+            "Chain ID: 0x", uint256ToHex(bytes32(block.chainid)), "\n",
+            "Timestamp: 0x", uint64ToHex(bytes8(uint64(block.timestamp)))
+        );
         bytes32 prefixedHashMessage = keccak256(abi.encodePacked(prefix, _msg));
         address signer = ecrecover(prefixedHashMessage, _v, _r, _s);
         return signer;
@@ -116,7 +126,7 @@ contract YlideRegistryV6 is Owned, Terminatable, BlockNumberRingBufferIndex {
 
     function attachPublicKeyByAdmin(uint8 _v, bytes32 _r, bytes32 _s, address payable addr, uint256 publicKey, uint32 keyVersion, uint32 registrar, address payable referrer, bool payBonus) external payable onlyBonucer notTerminated {
         require(keyVersion != 0, 'Key version must be above zero');
-        require(verifyMessage(bytes32(publicKey), _v, _r, _s) == addr, 'Signature does not match the user''s address');
+        require(verifyMessage(bytes32(publicKey), _v, _r, _s, registrar) == addr, 'Signature does not match the user''s address');
         require(referrer == address(0x0) || addressToPublicKey[referrer].keyVersion != 0, 'Referrer must be registered');
         require(addr != address(0x0) && addressToPublicKey[addr].keyVersion == 0, 'Only new user key can be assigned by admin');
 
