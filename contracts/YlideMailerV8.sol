@@ -8,6 +8,10 @@ import './helpers/BlockNumberRingBufferIndex.sol';
 
 struct BroadcastFeedV8 {
     address owner;
+    address payable beneficiary;
+
+    uint256 broadcastFee;
+
     bool isPublic;
     mapping (address => bool) writers;
     uint256 messagesIndex;
@@ -77,6 +81,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
     event BroadcastFeedOwnershipTransferred(uint256 indexed feedId, address newOwner);
 
     event MailingFeedBeneficiaryChanged(uint256 indexed feedId, address newBeneficiary);
+    event BroadcastFeedBeneficiaryChanged(uint256 indexed feedId, address newBeneficiary);
     
     event BroadcastFeedPublicityChanged(uint256 indexed feedId, bool isPublic);
     event BroadcastFeedWriterChange(uint256 indexed feedId, address indexed writer, bool status);
@@ -96,15 +101,42 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         mailingFeeds[2].owner = msg.sender; // system messages
         mailingFeeds[2].beneficiary = payable(msg.sender);
 
+        mailingFeeds[3].owner = msg.sender; // system messages
+        mailingFeeds[3].beneficiary = payable(msg.sender);
+
+        mailingFeeds[4].owner = msg.sender; // system messages
+        mailingFeeds[4].beneficiary = payable(msg.sender);
+
+        mailingFeeds[5].owner = msg.sender; // system messages
+        mailingFeeds[5].beneficiary = payable(msg.sender);
+
+        mailingFeeds[6].owner = msg.sender; // system messages
+        mailingFeeds[6].beneficiary = payable(msg.sender);
+
+        mailingFeeds[7].owner = msg.sender; // system messages
+        mailingFeeds[7].beneficiary = payable(msg.sender);
+
+        mailingFeeds[8].owner = msg.sender; // system messages
+        mailingFeeds[8].beneficiary = payable(msg.sender);
+
+        mailingFeeds[9].owner = msg.sender; // system messages
+        mailingFeeds[9].beneficiary = payable(msg.sender);
+
+        mailingFeeds[10].owner = msg.sender; // system messages
+        mailingFeeds[10].beneficiary = payable(msg.sender);
+
         broadcastFeeds[0].owner = msg.sender;
+        broadcastFeeds[0].beneficiary = payable(msg.sender);
         broadcastFeeds[0].isPublic = false;
         broadcastFeeds[0].writers[msg.sender] = true;
 
         broadcastFeeds[1].owner = msg.sender;
+        broadcastFeeds[1].beneficiary = payable(msg.sender);
         broadcastFeeds[1].isPublic = false;
         broadcastFeeds[1].writers[msg.sender] = true;
 
         broadcastFeeds[2].owner = msg.sender;
+        broadcastFeeds[2].beneficiary = payable(msg.sender);
         broadcastFeeds[2].isPublic = true;
     }
 
@@ -113,6 +145,13 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
             revert();
         }
         mailingFeeds[feedId].recipientFee = _recipientFee;
+    }
+
+    function setBroadcastFeedFees(uint256 feedId, uint256 _broadcastFee) public {
+        if (msg.sender != broadcastFeeds[feedId].owner) {
+            revert();
+        }
+        broadcastFeeds[feedId].broadcastFee = _broadcastFee;
     }
 
     function isBroadcastFeedWriter(uint256 feedId, address addr) public view returns (bool) {
@@ -348,6 +387,15 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
 
         broadcastFeeds[feedId].owner = newOwner;
         emit BroadcastFeedOwnershipTransferred(feedId, newOwner);
+    }
+
+    function setBroadcastFeedBeneficiary(uint256 feedId, address payable newBeneficiary) public {
+        if (broadcastFeeds[feedId].owner != msg.sender) {
+            revert('You are not allowed to set beneficiary of this feed');
+        }
+
+        broadcastFeeds[feedId].beneficiary = newBeneficiary;
+        emit BroadcastFeedBeneficiaryChanged(feedId, newBeneficiary);
     }
 
     function changeBroadcastFeedPublicity(uint256 feedId, bool isPublic) public {
