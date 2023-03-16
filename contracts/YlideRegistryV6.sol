@@ -90,7 +90,7 @@ contract YlideRegistryV6 is Owned, Terminatable, BlockNumberRingBufferIndex {
     }
 
     function verifyMessage(bytes32 publicKey, uint8 _v, bytes32 _r, bytes32 _s, uint32 registrar, uint64 timestampLock) public view returns (address) {
-        if (timestampLock > block.timestamp || block.timestamp - timestampLock > 5 * 60 * 1000) {
+        if (timestampLock > block.timestamp || block.timestamp - timestampLock > 5 * 60) {
             revert('Timestamp lock is invalid');
         }
         bytes memory prefix = "\x19Ethereum Signed Message:\n330";
