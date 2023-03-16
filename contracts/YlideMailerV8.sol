@@ -368,6 +368,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         lastFeedId += 1;
         
         broadcastFeeds[feedId].owner = msg.sender;
+        broadcastFeeds[feedId].beneficiary = payable(msg.sender);
         broadcastFeeds[feedId].isPublic = isPublic;
         broadcastFeeds[feedId].writers[msg.sender] = true;
         broadcastFeeds[feedId].messagesIndex = 0;
