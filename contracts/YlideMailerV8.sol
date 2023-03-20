@@ -287,33 +287,41 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         emit BroadcastPush(sender, feedId, contentId, current);
     }
 
-    function sendBroadcast(uint256 feedId, uint256 uniqueId, bytes calldata content) public payable notTerminated returns (uint256) {
-        if (!broadcastFeeds[feedId].isPublic && broadcastFeeds[feedId].writers[msg.sender] != true) {
+    function sendBroadcast(bool isPersonal, uint256 feedId, uint256 uniqueId, bytes calldata content) public payable notTerminated returns (uint256) {
+        if (!isPersonal && !broadcastFeeds[feedId].isPublic && broadcastFeeds[feedId].writers[msg.sender] != true) {
             revert('You are not allowed to write to this feed');
         }
+
+        uint256 composedFeedId = isPersonal ? uint256(sha256(abi.encodePacked(msg.sender, feedId))) : feedId;
 
         uint256 contentId = buildContentId(msg.sender, uniqueId, block.number, 1, 0);
 
         emit MessageContent(contentId, msg.sender, 1, 0, content);
-        emitBroadcastPush(msg.sender, feedId, contentId);
+        emitBroadcastPush(msg.sender, composedFeedId, contentId);
 
         payOut(1, 0, 1);
-        payOutBroadcastFeed(feedId, 1);
+        if (!isPersonal) {
+            payOutBroadcastFeed(feedId, 1);
+        }
 
         return contentId;
     }
 
-    function sendBroadcastHeader(uint256 feedId, uint256 uniqueId, uint256 firstBlockNumber, uint16 partsCount, uint16 blockCountLock) public payable notTerminated returns (uint256) {
-        if (!broadcastFeeds[feedId].isPublic && broadcastFeeds[feedId].writers[msg.sender] != true) {
+    function sendBroadcastHeader(bool isPersonal, uint256 feedId, uint256 uniqueId, uint256 firstBlockNumber, uint16 partsCount, uint16 blockCountLock) public payable notTerminated returns (uint256) {
+        if (!isPersonal && !broadcastFeeds[feedId].isPublic && broadcastFeeds[feedId].writers[msg.sender] != true) {
             revert('You are not allowed to write to this feed');
         }
 
+        uint256 composedFeedId = isPersonal ? uint256(sha256(abi.encodePacked(msg.sender, feedId))) : feedId;
+
         uint256 contentId = buildContentId(msg.sender, uniqueId, firstBlockNumber, partsCount, blockCountLock);
 
-        emitBroadcastPush(msg.sender, feedId, contentId);
+        emitBroadcastPush(msg.sender, composedFeedId, contentId);
 
         payOut(0, 0, 1);
-        payOutBroadcastFeed(feedId, 1);
+        if (!isPersonal) {
+            payOutBroadcastFeed(feedId, 1);
+        }
 
         return contentId;
     }
