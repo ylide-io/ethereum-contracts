@@ -11,3 +11,9 @@ GAS_REPORT=true npx hardhat test
 npx hardhat node
 npx hardhat run scripts/deploy.ts
 ```
+
+To verify contract run:
+
+```shell
+npx hardhat verify --network mainnet <CONTRACT ADDRESS>
+```

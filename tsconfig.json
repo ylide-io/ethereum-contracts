@@ -1,11 +1,14 @@
 {
-    "compilerOptions": {
-        "target": "ESNext",
-        "module": "commonjs",
-        "esModuleInterop": true,
-        "forceConsistentCasingInFileNames": true,
-        "strict": true
-    },
-    "include": ["./src", "./scripts"], //only the "scripts" part.
-    "files": ["./hardhat.config.ts"]
+	"compilerOptions": {
+		"baseUrl": ".",
+		"target": "ESNext",
+		"module": "commonjs",
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"strict": true,
+		"skipLibCheck": true
+	},
+	"paths": {
+		"typechain-types/*": ["typechain-types/*"]
+	}
 }
