@@ -47,8 +47,6 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
 
     mapping (uint256 => uint256) public recipientToMailingFeedJoinEventsIndex;
 
-    uint256 public lastFeedId = 1;
-
     event MailPush(
         uint256 indexed recipient,
         uint256 indexed feedId,
@@ -292,7 +290,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
             revert('You are not allowed to write to this feed');
         }
 
-        uint256 composedFeedId = isPersonal ? uint256(sha256(abi.encodePacked(msg.sender, feedId))) : feedId;
+        uint256 composedFeedId = isPersonal ? uint256(sha256(abi.encodePacked(msg.sender, uint256(1), feedId))) : feedId;
 
         uint256 contentId = buildContentId(msg.sender, uniqueId, block.number, 1, 0);
 
@@ -348,9 +346,12 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
     /* ---------------------------------------------- */
 
     // Feed management:
-    function createMailingFeed() public payable returns (uint256) {
-        uint256 feedId = uint256(keccak256(abi.encodePacked(address(this), block.number, lastFeedId)));
-        lastFeedId += 1;
+    function createMailingFeed(uint256 uniqueId) public payable returns (uint256) {
+        uint256 feedId = uint256(keccak256(abi.encodePacked(msg.sender, uint256(0), uniqueId)));
+
+        if (mailingFeeds[feedId].owner != address(0)) {
+            revert('Feed already exists');
+        }
         
         mailingFeeds[feedId].owner = msg.sender;
         mailingFeeds[feedId].beneficiary = payable(msg.sender);
@@ -380,9 +381,12 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         emit MailingFeedBeneficiaryChanged(feedId, newBeneficiary);
     }
 
-    function createBroadcastFeed(bool isPublic) public payable returns (uint256) {
-        uint256 feedId = uint256(keccak256(abi.encodePacked(address(this), block.number, lastFeedId)));
-        lastFeedId += 1;
+    function createBroadcastFeed(uint256 uniqueId, bool isPublic) public payable returns (uint256) {
+        uint256 feedId = uint256(keccak256(abi.encodePacked(msg.sender, uint256(0), uniqueId)));
+
+        if (broadcastFeeds[feedId].owner != address(0)) {
+            revert('Feed already exists');
+        }
         
         broadcastFeeds[feedId].owner = msg.sender;
         broadcastFeeds[feedId].beneficiary = payable(msg.sender);
