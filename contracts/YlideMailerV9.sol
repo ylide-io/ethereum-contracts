@@ -42,18 +42,6 @@ contract YlideMailerV9 is
 		mapping(uint256 => uint256) recipientMessagesCount;
 	}
 
-	struct Recipient {
-		uint256 user;
-		address token;
-		uint256 amount;
-		TokenType tokenType;
-	}
-
-	enum TokenType {
-		ERC20,
-		ERC721
-	}
-
 	event MailPush(
 		uint256 indexed recipient,
 		uint256 indexed feedId,

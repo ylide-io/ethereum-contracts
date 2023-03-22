@@ -191,7 +191,7 @@ describe('Token attachment', () => {
 					amountOrTokenId: 123,
 					sendTo: user2.address,
 					token: nft1.address,
-					tokenType: 0,
+					tokenType: 1,
 					transferType: 0,
 				},
 				{
