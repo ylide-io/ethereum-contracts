@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address';
 import { expect } from 'chai';
-import { ethers } from 'hardhat';
+import { ethers, upgrades } from 'hardhat';
 import { before, describe, it } from 'mocha';
 import { MockERC20, MockERC721, YlideMailerV9, YlidePay } from 'typechain-types';
 import {
@@ -34,7 +34,12 @@ describe('Token attachment', () => {
 	before(async () => {
 		[owner, user1, user2] = await ethers.getSigners();
 		ylideMailer = (await ethers.getContractFactory('YlideMailerV9', owner).then(f => f.deploy())) as YlideMailerV9;
-		ylidePay = (await ethers.getContractFactory('YlidePay', owner).then(f => f.deploy())) as YlidePay;
+		ylidePay = (await ethers.getContractFactory('YlidePay', owner).then(f =>
+			upgrades.deployProxy(f, {
+				initializer: 'initialize',
+				kind: 'uups',
+			}),
+		)) as YlidePay;
 		token1 = (await ethers.getContractFactory('MockERC20').then(f => f.deploy('token1', 'token1'))) as MockERC20;
 		token2 = (await ethers.getContractFactory('MockERC20').then(f => f.deploy('token2', 'token2'))) as MockERC20;
 		nft1 = (await ethers.getContractFactory('MockERC721').then(f => f.deploy('nft1', 'nft1'))) as MockERC721;

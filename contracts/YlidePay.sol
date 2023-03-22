@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
-import {Owned} from "./helpers/Owned.sol";
+import {IERC20MetadataUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
+import {IERC721MetadataUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/IERC721MetadataUpgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+
 import {ListMap} from "./helpers/ListMap.sol";
 
 import {IYlideMailer} from "./interfaces/IYlideMailer.sol";
 
-contract YlidePay is Owned {
-	using SafeERC20 for IERC20;
+contract YlidePay is OwnableUpgradeable, UUPSUpgradeable {
+	using SafeERC20Upgradeable for IERC20MetadataUpgradeable;
 	using ListMap for ListMap._uint256;
 	using ListMap for ListMap._address;
 
@@ -58,7 +60,16 @@ contract YlidePay is Owned {
 
 	event WithdrawERC721(address indexed user, address indexed token, uint256 indexed tokenId);
 
-	constructor() {}
+	/// @custom:oz-upgrades-unsafe-allow constructor
+	constructor() {
+		_disableInitializers();
+	}
+
+	function initialize() public initializer {
+		__Ownable_init();
+	}
+
+	function _authorizeUpgrade(address newImplementation) internal virtual override onlyOwner {}
 
 	function getBalanceErc20(address user, address token) external view returns (uint256) {
 		return erc20Balances[user][token];
@@ -85,13 +96,13 @@ contract YlidePay is Owned {
 
 	function _safeTransferFrom(TokenInfo calldata tokenInfo) internal {
 		if (tokenInfo.tokenType == TokenType.ERC20) {
-			IERC20(tokenInfo.token).safeTransferFrom(
+			IERC20MetadataUpgradeable(tokenInfo.token).safeTransferFrom(
 				msg.sender,
 				tokenInfo.sendTo,
 				tokenInfo.amountOrTokenId
 			);
 		} else if (tokenInfo.tokenType == TokenType.ERC721) {
-			IERC721(tokenInfo.token).safeTransferFrom(
+			IERC721MetadataUpgradeable(tokenInfo.token).safeTransferFrom(
 				msg.sender,
 				tokenInfo.sendTo,
 				tokenInfo.amountOrTokenId
@@ -105,7 +116,7 @@ contract YlidePay is Owned {
 			if (!userErc20Tokens[tokenInfo.sendTo].includes[tokenInfo.token]) {
 				userErc20Tokens[tokenInfo.sendTo].add(tokenInfo.token);
 			}
-			IERC20(tokenInfo.token).safeTransferFrom(
+			IERC20MetadataUpgradeable(tokenInfo.token).safeTransferFrom(
 				msg.sender,
 				address(this),
 				tokenInfo.amountOrTokenId
@@ -115,7 +126,7 @@ contract YlidePay is Owned {
 			if (!userErc721Tokens[tokenInfo.sendTo].includes[tokenInfo.token]) {
 				userErc721Tokens[tokenInfo.sendTo].add(tokenInfo.token);
 			}
-			IERC721(tokenInfo.token).safeTransferFrom(
+			IERC721MetadataUpgradeable(tokenInfo.token).safeTransferFrom(
 				msg.sender,
 				address(this),
 				tokenInfo.amountOrTokenId
@@ -196,7 +207,7 @@ contract YlidePay is Owned {
 			uint256 balance = erc20Balances[msg.sender][erc20s[i]];
 			erc20Balances[msg.sender][erc20s[i]] = 0;
 			userErc20Tokens[msg.sender].remove(erc20s[i]);
-			IERC20(erc20s[i]).safeTransfer(msg.sender, balance);
+			IERC20MetadataUpgradeable(erc20s[i]).safeTransfer(msg.sender, balance);
 			emit WithdrawERC20(msg.sender, erc20s[i], balance);
 			unchecked {
 				i++;
@@ -210,7 +221,7 @@ contract YlidePay is Owned {
 			if (erc721Balances[msg.sender][erc721s[i].token].list.length == 0) {
 				userErc721Tokens[msg.sender].remove(erc721s[i].token);
 			}
-			IERC721(erc721s[i].token).safeTransferFrom(
+			IERC721MetadataUpgradeable(erc721s[i].token).safeTransferFrom(
 				address(this),
 				msg.sender,
 				erc721s[i].tokenId

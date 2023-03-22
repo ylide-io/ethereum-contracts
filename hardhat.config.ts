@@ -4,6 +4,7 @@ import '@nomiclabs/hardhat-solhint';
 import '@nomiclabs/hardhat-etherscan';
 import 'hardhat-contract-sizer';
 import 'hardhat-gas-reporter';
+import '@openzeppelin/hardhat-upgrades';
 
 const config: HardhatUserConfig = {
 	solidity: '0.8.17',

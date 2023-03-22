@@ -9,6 +9,8 @@ specifiers:
   '@nomiclabs/hardhat-etherscan': 3.1.5
   '@nomiclabs/hardhat-solhint': 3.0.0
   '@openzeppelin/contracts': 4.8.2
+  '@openzeppelin/contracts-upgradeable': ^4.8.2
+  '@openzeppelin/hardhat-upgrades': ^1.22.1
   '@typechain/ethers-v5': 10.2.0
   '@typechain/hardhat': 6.1.5
   '@types/mocha': 10.0.1
@@ -39,6 +41,8 @@ devDependencies:
   '@nomiclabs/hardhat-etherscan': 3.1.5_hardhat@2.12.6
   '@nomiclabs/hardhat-solhint': 3.0.0_hardhat@2.12.6
   '@openzeppelin/contracts': 4.8.2
+  '@openzeppelin/contracts-upgradeable': 4.8.2
+  '@openzeppelin/hardhat-upgrades': 1.22.1_iylslxbf5tbs6tun4prcgogolq
   '@typechain/ethers-v5': 10.2.0_k6bdrczrdxrxopgjlr5kov2hw4
   '@typechain/hardhat': 6.1.5_flitjyqkwkdrfmvmmkefmykn34
   '@types/mocha': 10.0.1
@@ -858,8 +862,51 @@ packages:
       solhint: 3.4.1
     dev: true
 
+  /@openzeppelin/contracts-upgradeable/4.8.2:
+    resolution: {integrity: sha512-zIggnBwemUmmt9IS73qxi+tumALxCY4QEs3zLCII78k0Gfse2hAOdAkuAeLUzvWUpneMUfFE5sGHzEUSTvn4Ag==}
+    dev: true
+
   /@openzeppelin/contracts/4.8.2:
     resolution: {integrity: sha512-kEUOgPQszC0fSYWpbh2kT94ltOJwj1qfT2DWo+zVttmGmf97JZ99LspePNaeeaLhCImaHVeBbjaQFZQn7+Zc5g==}
+    dev: true
+
+  /@openzeppelin/hardhat-upgrades/1.22.1_iylslxbf5tbs6tun4prcgogolq:
+    resolution: {integrity: sha512-MdoitCTLl4zwMU8MeE/bCj+7JMWBEvd38XqJkw36PkJrXlbv6FedDVCPoumMAhpmtymm0nTwTYYklYG+L6WiiQ==}
+    hasBin: true
+    peerDependencies:
+      '@nomiclabs/hardhat-ethers': ^2.0.0
+      '@nomiclabs/hardhat-etherscan': ^3.1.0
+      '@nomiclabs/harhdat-etherscan': '*'
+      ethers: ^5.0.5
+      hardhat: ^2.0.2
+    peerDependenciesMeta:
+      '@nomiclabs/harhdat-etherscan':
+        optional: true
+    dependencies:
+      '@nomiclabs/hardhat-ethers': 2.0.0_n3rx3kkfcos7o3ij5m4a4n7ngq
+      '@nomiclabs/hardhat-etherscan': 3.1.5_hardhat@2.12.6
+      '@openzeppelin/upgrades-core': 1.24.1
+      chalk: 4.1.2
+      debug: 4.3.4
+      ethers: 5.7.2
+      hardhat: 2.12.6_z6wznmtyb6ovnulj6iujpct7um
+      proper-lockfile: 4.1.2
+    transitivePeerDependencies:
+      - supports-color
+    dev: true
+
+  /@openzeppelin/upgrades-core/1.24.1:
+    resolution: {integrity: sha512-QhdIQDUykJ3vQauB6CheV7vk4zgn0e1iY+IDg7r1KqpA1m2bqIGjQCpzidW33K4bZc9zdJSPx2/Z6Um5KxCB7A==}
+    dependencies:
+      cbor: 8.1.0
+      chalk: 4.1.2
+      compare-versions: 5.0.3
+      debug: 4.3.4
+      ethereumjs-util: 7.1.5
+      proper-lockfile: 4.1.2
+      solidity-ast: 0.4.46
+    transitivePeerDependencies:
+      - supports-color
     dev: true
 
   /@scure/base/1.1.1:
@@ -1908,6 +1955,10 @@ packages:
 
   /commander/3.0.2:
     resolution: {integrity: sha512-Gar0ASD4BDyKC4hl4DwHqDrmvjoxWKZigVnAbn5H1owvm4CxCPdb0HQDehwNYMJpla5+M2tPmPARzhtYuwpHow==}
+    dev: true
+
+  /compare-versions/5.0.3:
+    resolution: {integrity: sha512-4UZlZP8Z99MGEY+Ovg/uJxJuvoXuN4M6B3hKaiackiHrgzQFEe3diJi1mf1PNHbFujM7FvLrK2bpgIaImbtZ1A==}
     dev: true
 
   /concat-map/0.0.1:
@@ -4117,6 +4168,14 @@ packages:
       asap: 2.0.6
     dev: true
 
+  /proper-lockfile/4.1.2:
+    resolution: {integrity: sha512-TjNPblN4BwAWMXU8s9AEz4JmQxnD1NNL7bNOY/AKUzyamc379FWASUhc/K1pL2noVb+XmZKLL68cjzLsiOAMaA==}
+    dependencies:
+      graceful-fs: 4.2.10
+      retry: 0.12.0
+      signal-exit: 3.0.7
+    dev: true
+
   /psl/1.9.0:
     resolution: {integrity: sha512-E/ZsdU4HLs/68gYzgGTkMicWTLPdAftJLfJFlLUAAKZGkStNU72sZjT66SnMDVOfOWY/YAoiD7Jxa9iHvngcag==}
     dev: true
@@ -4319,6 +4378,11 @@ packages:
       path-parse: 1.0.7
     dev: true
 
+  /retry/0.12.0:
+    resolution: {integrity: sha512-9LkiTwjUh6rT555DtE9rTX+BKByPfrMzEAtnlEtdEwr3Nkffwiihqe2bWADg+OQRjt9gl6ICdmB/ZFDCGAtSow==}
+    engines: {node: '>= 4'}
+    dev: true
+
   /reusify/1.0.4:
     resolution: {integrity: sha512-U9nH88a3fc/ekCF1l0/UP1IosiuIjyTh7hBvXVMHYgVcfGvt897Xguj2UOLDeI5BG2m7/uwyaLVT6fbtCwTyzw==}
     engines: {iojs: '>=1.0.0', node: '>=0.10.0'}
@@ -4491,6 +4555,10 @@ packages:
       object-inspect: 1.12.3
     dev: true
 
+  /signal-exit/3.0.7:
+    resolution: {integrity: sha512-wnD2ZE+l+SPC/uoS0vXeE9L1+0wuaMqKlfz9AMUo38JsyLSBWSFcHR1Rri62LZc12vLr1gb3jl7iwQhgwpAbGQ==}
+    dev: true
+
   /slash/3.0.0:
     resolution: {integrity: sha512-g9Q1haeby36OSStwb4ntCGGGaKsaVSjQ68fBxoQcutl5fS1vuY18H3wSt3jFyFtrkx+Kz0V1G85A4MyAdDMi2Q==}
     engines: {node: '>=8'}
@@ -4546,6 +4614,10 @@ packages:
       text-table: 0.2.0
     optionalDependencies:
       prettier: 2.8.3
+    dev: true
+
+  /solidity-ast/0.4.46:
+    resolution: {integrity: sha512-MlPZQfPhjWXqh7YxWcBGDXaPZIfMYCOHYoLEhGDWulNwEPIQQZuB7mA9eP17CU0jY/bGR4avCEUVVpvHtT2gbA==}
     dev: true
 
   /solidity-comments-extractor/0.0.7:
