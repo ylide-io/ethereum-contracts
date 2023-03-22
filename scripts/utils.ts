@@ -28,7 +28,7 @@ export const initiateSnapshot = (): Snapshot => ({
 
 export function prepareSendBulkMailWithTokenArguments(
 	args: Parameters<YlideMailerV9['functions']['sendBulkMail(uint256,uint256,uint256[],bytes[],bytes)']>,
-	userInfos: YlidePay.UserInfoStruct[],
+	userInfos: YlidePay.TokenInfoStruct[],
 ) {
 	const result = [...args] as any;
 	result[2] = result[2].map((recipient: BigNumberish, i: number) => {
@@ -52,7 +52,7 @@ export function prepareAddMailRecipientsWithTokenArguments(
 	args: Parameters<
 		YlideMailerV9['functions']['addMailRecipients(uint256,uint256,uint256,uint16,uint16,uint256[],bytes[])']
 	>,
-	userInfos: YlidePay.UserInfoStruct[],
+	userInfos: YlidePay.TokenInfoStruct[],
 ) {
 	const result = [...args] as any;
 	result[5] = result[5].map((recipient: BigNumberish, i: number) => {
