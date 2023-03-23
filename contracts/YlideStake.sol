@@ -153,7 +153,7 @@ contract YlideStake is
 	function withdraw(uint256[] calldata contentIds) external whenNotPaused {
 		for (uint256 i; i < contentIds.length; ) {
 			TokenInfo storage tokenInfo = contentIdToUserToTokenInfo[contentIds[i]][msg.sender];
-			if (tokenInfo.token == address(0) || tokenInfo.claimed == true) {
+			if (tokenInfo.token == address(0) || tokenInfo.claimed) {
 				unchecked {
 					i++;
 				}

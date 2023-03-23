@@ -28,7 +28,18 @@ contract YlideStreamSablier is Owned, Pausable {
 		uint256 startTime,
 		uint256 stopTime,
 		address indexed recipient,
+		address sender,
 		address tokenAddress
+	);
+
+	event StreamWithdraw(uint256 indexed streamId, address indexed recipient, uint256 amount);
+
+	event StreamCancelled(
+		uint256 indexed contentId,
+		uint256 indexed streamId,
+		address indexed recipient,
+		address sender,
+		address initiator
 	);
 
 	uint256 public constant version = 1;
@@ -70,6 +81,7 @@ contract YlideStreamSablier is Owned, Pausable {
 			streamInfo.startTime,
 			streamInfo.stopTime,
 			streamInfo.recipient,
+			msg.sender,
 			streamInfo.tokenAddress
 		);
 	}
@@ -144,7 +156,11 @@ contract YlideStreamSablier is Owned, Pausable {
 		if (msg.sender != sender || msg.sender != recipient) {
 			revert("caller is not the sender or the recipient of the stream");
 		}
-		return sablier.withdrawFromStream(streamId, amount);
+		bool success = sablier.withdrawFromStream(streamId, amount);
+		if (success) {
+			emit StreamWithdraw(streamId, recipient, amount);
+		}
+		return success;
 	}
 
 	/**
@@ -156,6 +172,66 @@ contract YlideStreamSablier is Owned, Pausable {
 	 * @return bool true=success, otherwise false.
 	 */
 	function cancelStream(uint256 streamId) external whenNotPaused returns (bool) {
+		bool success = _cancelStream(streamId);
+		if (success) {
+			_emitStreamCancelled(streamId, 0);
+		}
+		return success;
+	}
+
+	function cancelStreamAndSendBulkMail(
+		uint256 feedId,
+		uint256 uniqueId,
+		uint256[] calldata recipients,
+		bytes[] calldata keys,
+		bytes calldata content,
+		uint256 streamId
+	) external whenNotPaused returns (uint256) {
+		bool success = _cancelStream(streamId);
+		if (!success) {
+			revert("Stream cannot be cancelled");
+		}
+		uint256 contentId = ylideMailer.sendBulkMail(
+			msg.sender,
+			feedId,
+			uniqueId,
+			recipients,
+			keys,
+			content
+		);
+		_emitStreamCancelled(streamId, contentId);
+		return contentId;
+	}
+
+	function cancelStreamAndAddMailRecipients(
+		uint256 feedId,
+		uint256 uniqueId,
+		uint256 firstBlockNumber,
+		uint16 partsCount,
+		uint16 blockCountLock,
+		uint256[] calldata recipients,
+		bytes[] calldata keys,
+		uint256 streamId
+	) external whenNotPaused returns (uint256) {
+		bool success = _cancelStream(streamId);
+		if (!success) {
+			revert("Stream cannot be cancelled");
+		}
+		uint256 contentId = ylideMailer.addMailRecipients(
+			msg.sender,
+			feedId,
+			uniqueId,
+			firstBlockNumber,
+			partsCount,
+			blockCountLock,
+			recipients,
+			keys
+		);
+		_emitStreamCancelled(streamId, contentId);
+		return contentId;
+	}
+
+	function _cancelStream(uint256 streamId) internal returns (bool) {
 		address sender = streamIdToSender[streamId];
 		(, address recipient, , address tokenAddress, , , , ) = sablier.getStream(streamId);
 		if (msg.sender != sender || msg.sender != recipient) {
@@ -163,10 +239,21 @@ contract YlideStreamSablier is Owned, Pausable {
 		}
 		uint256 balance = sablier.balanceOf(streamId, address(this));
 		bool result = sablier.cancelStream(streamId);
-		if (result == true && balance > 0) {
+		if (result && balance > 0) {
 			IERC20(tokenAddress).safeTransfer(sender, balance);
 		}
 		return result;
+	}
+
+	function _emitStreamCancelled(uint256 streamId, uint256 contentId) internal {
+		(, address recipient, , , , , , ) = sablier.getStream(streamId);
+		emit StreamCancelled(
+			contentId,
+			streamId,
+			recipient,
+			streamIdToSender[streamId],
+			msg.sender
+		);
 	}
 
 	function balanceOf(uint256 streamId, address who) public view returns (uint256 balance) {
