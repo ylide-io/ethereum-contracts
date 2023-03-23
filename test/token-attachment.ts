@@ -79,10 +79,16 @@ describe('Token attachment', () => {
 		await ylidePay.connect(user1).sendBulkMailWithToken(
 			...prepareSendBulkMailWithTokenArguments(sendBulkMailArgs, [
 				{
-					recipient: 112,
 					amountOrTokenId: toWei(300),
 					sendTo: user2.address,
 					token: token1.address,
+					tokenType: 0,
+					transferType: 0,
+				},
+				{
+					amountOrTokenId: 0,
+					sendTo: ethers.constants.AddressZero,
+					token: ethers.constants.AddressZero,
 					tokenType: 0,
 					transferType: 0,
 				},
@@ -96,7 +102,6 @@ describe('Token attachment', () => {
 		await ylidePay.connect(user1).sendBulkMailWithToken(
 			...prepareSendBulkMailWithTokenArguments(sendBulkMailArgs, [
 				{
-					recipient: 112,
 					amountOrTokenId: toWei(200),
 					sendTo: user2.address,
 					token: token1.address,
@@ -104,7 +109,6 @@ describe('Token attachment', () => {
 					transferType: 0,
 				},
 				{
-					recipient: 113,
 					amountOrTokenId: toWei(100),
 					sendTo: owner.address,
 					token: token2.address,
@@ -133,7 +137,6 @@ describe('Token attachment', () => {
 		await ylidePay.connect(user1).sendBulkMailWithToken(
 			...prepareSendBulkMailWithTokenArguments(sendBulkMailArgs, [
 				{
-					recipient: 112,
 					amountOrTokenId: 123,
 					sendTo: user2.address,
 					token: nft1.address,
@@ -152,7 +155,6 @@ describe('Token attachment', () => {
 		await ylidePay.connect(user1).sendBulkMailWithToken(
 			...prepareSendBulkMailWithTokenArguments(sendBulkMailArgs, [
 				{
-					recipient: 112,
 					amountOrTokenId: 456,
 					sendTo: user2.address,
 					token: nft1.address,
@@ -160,7 +162,6 @@ describe('Token attachment', () => {
 					transferType: 0,
 				},
 				{
-					recipient: 113,
 					amountOrTokenId: 789,
 					sendTo: owner.address,
 					token: nft2.address,
@@ -192,7 +193,6 @@ describe('Token attachment', () => {
 		await ylidePay.connect(user1).sendBulkMailWithToken(
 			...prepareSendBulkMailWithTokenArguments(sendBulkMailArgs, [
 				{
-					recipient: 112,
 					amountOrTokenId: 123,
 					sendTo: user2.address,
 					token: nft1.address,
@@ -200,7 +200,6 @@ describe('Token attachment', () => {
 					transferType: 0,
 				},
 				{
-					recipient: 113,
 					amountOrTokenId: toWei(300),
 					sendTo: owner.address,
 					token: token1.address,
@@ -228,7 +227,6 @@ describe('Token attachment', () => {
 		await ylidePay.connect(user1).addMailRecipientsWithToken(
 			...prepareAddMailRecipientsWithTokenArguments(addMailRecipientsArgs, [
 				{
-					recipient: 112,
 					amountOrTokenId: toWei(300),
 					sendTo: user2.address,
 					token: token1.address,
@@ -244,7 +242,6 @@ describe('Token attachment', () => {
 		await ylidePay.connect(user1).addMailRecipientsWithToken(
 			...prepareAddMailRecipientsWithTokenArguments(addMailRecipientsArgs, [
 				{
-					recipient: 112,
 					amountOrTokenId: toWei(120),
 					sendTo: user2.address,
 					token: token1.address,
@@ -252,7 +249,6 @@ describe('Token attachment', () => {
 					transferType: 0,
 				},
 				{
-					recipient: 113,
 					amountOrTokenId: toWei(80),
 					sendTo: owner.address,
 					token: token1.address,
@@ -277,7 +273,6 @@ describe('Token attachment', () => {
 		await ylidePay.connect(user1).addMailRecipientsWithToken(
 			...prepareAddMailRecipientsWithTokenArguments(addMailRecipientsArgs, [
 				{
-					recipient: 112,
 					amountOrTokenId: 123,
 					sendTo: user2.address,
 					token: nft1.address,
@@ -296,7 +291,6 @@ describe('Token attachment', () => {
 		await ylidePay.connect(user1).addMailRecipientsWithToken(
 			...prepareAddMailRecipientsWithTokenArguments(addMailRecipientsArgs, [
 				{
-					recipient: 112,
 					amountOrTokenId: 456,
 					sendTo: user2.address,
 					token: nft1.address,
@@ -304,7 +298,6 @@ describe('Token attachment', () => {
 					transferType: 0,
 				},
 				{
-					recipient: 113,
 					amountOrTokenId: 789,
 					sendTo: owner.address,
 					token: nft1.address,
@@ -331,7 +324,6 @@ describe('Token attachment', () => {
 		await ylidePay.connect(user1).addMailRecipientsWithToken(
 			...prepareAddMailRecipientsWithTokenArguments(addMailRecipientsArgs, [
 				{
-					recipient: 112,
 					amountOrTokenId: 123,
 					sendTo: user2.address,
 					token: nft1.address,
@@ -339,7 +331,6 @@ describe('Token attachment', () => {
 					transferType: 0,
 				},
 				{
-					recipient: 113,
 					amountOrTokenId: toWei(300),
 					sendTo: owner.address,
 					token: token1.address,
@@ -369,7 +360,6 @@ describe('Token attachment', () => {
 		await ylidePay.connect(user1).sendBulkMailWithToken(
 			...prepareSendBulkMailWithTokenArguments(sendBulkMailArgs, [
 				{
-					recipient: 112,
 					amountOrTokenId: toWei(300),
 					sendTo: user2.address,
 					token: token1.address,
@@ -377,7 +367,6 @@ describe('Token attachment', () => {
 					transferType: 1,
 				},
 				{
-					recipient: 113,
 					amountOrTokenId: 123,
 					sendTo: user2.address,
 					token: nft1.address,
@@ -441,7 +430,6 @@ describe('Token attachment', () => {
 		await ylidePay.connect(user1).addMailRecipientsWithToken(
 			...prepareAddMailRecipientsWithTokenArguments(addMailRecipientsArgs, [
 				{
-					recipient: 112,
 					amountOrTokenId: toWei(300),
 					sendTo: user2.address,
 					token: token1.address,
@@ -449,7 +437,6 @@ describe('Token attachment', () => {
 					transferType: 1,
 				},
 				{
-					recipient: 113,
 					amountOrTokenId: 123,
 					sendTo: user2.address,
 					token: nft1.address,

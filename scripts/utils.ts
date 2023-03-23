@@ -31,21 +31,8 @@ export function prepareSendBulkMailWithTokenArguments(
 	userInfos: YlidePay.TokenInfoStruct[],
 ) {
 	const result = [...args] as any;
-	result[2] = result[2].map((recipient: BigNumberish, i: number) => {
-		if (userInfos[i]) {
-			userInfos[i].recipient = recipient;
-			return userInfos[i];
-		}
-		return {
-			recipient,
-			amountOrTokenId: 0,
-			sendTo: ethers.constants.AddressZero,
-			token: ethers.constants.AddressZero,
-			tokenType: 0,
-			transferType: 0,
-		};
-	});
-	return result as unknown as Parameters<YlidePay['functions']['sendBulkMailWithToken']>;
+	result[5] = userInfos;
+	return result as Parameters<YlidePay['functions']['sendBulkMailWithToken']>;
 }
 
 export function prepareAddMailRecipientsWithTokenArguments(
@@ -55,19 +42,6 @@ export function prepareAddMailRecipientsWithTokenArguments(
 	userInfos: YlidePay.TokenInfoStruct[],
 ) {
 	const result = [...args] as any;
-	result[5] = result[5].map((recipient: BigNumberish, i: number) => {
-		if (userInfos[i]) {
-			userInfos[i].recipient = recipient;
-			return userInfos[i];
-		}
-		return {
-			recipient,
-			amountOrTokenId: 0,
-			sendTo: ethers.constants.AddressZero,
-			token: ethers.constants.AddressZero,
-			tokenType: 0,
-			transferType: 0,
-		};
-	});
+	result[7] = userInfos;
 	return result as Parameters<YlidePay['functions']['addMailRecipientsWithToken']>;
 }
