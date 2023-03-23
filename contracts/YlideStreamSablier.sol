@@ -169,6 +169,39 @@ contract YlideStreamSablier is Owned, Pausable {
 		return result;
 	}
 
+	function balanceOf(uint256 streamId, address who) public view returns (uint256 balance) {
+		return sablier.balanceOf(streamId, who);
+	}
+
+	function getStream(
+		uint256 streamId
+	)
+		external
+		view
+		returns (
+			address sender,
+			address recipient,
+			uint256 deposit,
+			address tokenAddress,
+			uint256 startTime,
+			uint256 stopTime,
+			uint256 remainingBalance,
+			uint256 ratePerSecond
+		)
+	{
+		(
+			,
+			recipient,
+			deposit,
+			tokenAddress,
+			startTime,
+			stopTime,
+			remainingBalance,
+			ratePerSecond
+		) = sablier.getStream(streamId);
+		sender = streamIdToSender[streamId];
+	}
+
 	function pause() external onlyOwner {
 		_pause();
 	}
