@@ -2,7 +2,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { expect } from 'chai';
 import { ethers, upgrades } from 'hardhat';
 import { before, describe, it } from 'mocha';
-import { MockERC20, MockERC721, YlideMailerV9, YlidePay } from 'typechain-types';
+import { MockERC20, MockERC721, YlideMailerV9, YlidePay, YlideStake } from 'typechain-types';
 import {
 	backToSnapshot,
 	initiateSnapshot,
@@ -19,6 +19,7 @@ describe('Token attachment', () => {
 	let nft2: MockERC721;
 	let ylideMailer: YlideMailerV9;
 	let ylidePay: YlidePay;
+	let ylideStake: YlideStake;
 	let owner: SignerWithAddress;
 	let user1: SignerWithAddress;
 	let user2: SignerWithAddress;
@@ -34,12 +35,13 @@ describe('Token attachment', () => {
 	before(async () => {
 		[owner, user1, user2] = await ethers.getSigners();
 		ylideMailer = (await ethers.getContractFactory('YlideMailerV9', owner).then(f => f.deploy())) as YlideMailerV9;
-		ylidePay = (await ethers.getContractFactory('YlidePay', owner).then(f =>
+		ylidePay = (await ethers.getContractFactory('YlidePay', owner).then(f => f.deploy())) as YlidePay;
+		ylideStake = (await ethers.getContractFactory('YlideStake', owner).then(f =>
 			upgrades.deployProxy(f, {
 				initializer: 'initialize',
 				kind: 'uups',
 			}),
-		)) as YlidePay;
+		)) as YlideStake;
 		token1 = (await ethers.getContractFactory('MockERC20').then(f => f.deploy('token1', 'token1'))) as MockERC20;
 		token2 = (await ethers.getContractFactory('MockERC20').then(f => f.deploy('token2', 'token2'))) as MockERC20;
 		nft1 = (await ethers.getContractFactory('MockERC721').then(f => f.deploy('nft1', 'nft1'))) as MockERC721;
@@ -62,10 +64,21 @@ describe('Token attachment', () => {
 		expect(await ylidePay.ylideMailer()).equal(ylideMailer.address);
 	});
 
-	it('Owner can set ylidePay in YlideMailer', async () => {
-		await expect(ylideMailer.connect(user1).setYlidePay(ethers.Wallet.createRandom().address)).to.be.reverted;
-		await ylideMailer.connect(owner).setYlidePay(ylidePay.address);
-		expect(await ylideMailer.ylidePay()).equal(ylidePay.address);
+	it('Owner can set ylideMailer in YlideStake', async () => {
+		await expect(ylideStake.connect(user1).setYlideMailer(ethers.Wallet.createRandom().address)).to.be.reverted;
+		await ylideStake.connect(owner).setYlideMailer(ylideMailer.address);
+		expect(await ylideStake.ylideMailer()).equal(ylideMailer.address);
+	});
+
+	it('Owner can set isYlideTokenAttachment in YlideMailer', async () => {
+		await expect(
+			ylideMailer.connect(user1).setIsYlideTokenAttachment([ethers.Wallet.createRandom().address], [true]),
+		).to.be.reverted;
+		await ylideMailer
+			.connect(owner)
+			.setIsYlideTokenAttachment([ylidePay.address, ylideStake.address], [true, true]);
+		expect(await ylideMailer.isYlideTokenAttachment(ylidePay.address)).equal(true);
+		expect(await ylideMailer.isYlideTokenAttachment(ylideStake.address)).equal(true);
 		await makeSnapshot(snapshot);
 	});
 
@@ -80,17 +93,15 @@ describe('Token attachment', () => {
 			...prepareSendBulkMailWithTokenArguments(sendBulkMailArgs, [
 				{
 					amountOrTokenId: toWei(300),
-					sendTo: user2.address,
+					recipient: user2.address,
 					token: token1.address,
 					tokenType: 0,
-					transferType: 0,
 				},
 				{
 					amountOrTokenId: 0,
-					sendTo: ethers.constants.AddressZero,
+					recipient: ethers.constants.AddressZero,
 					token: ethers.constants.AddressZero,
 					tokenType: 0,
-					transferType: 0,
 				},
 			]),
 		);
@@ -103,17 +114,15 @@ describe('Token attachment', () => {
 			...prepareSendBulkMailWithTokenArguments(sendBulkMailArgs, [
 				{
 					amountOrTokenId: toWei(200),
-					sendTo: user2.address,
+					recipient: user2.address,
 					token: token1.address,
 					tokenType: 0,
-					transferType: 0,
 				},
 				{
 					amountOrTokenId: toWei(100),
-					sendTo: owner.address,
+					recipient: owner.address,
 					token: token2.address,
 					tokenType: 0,
-					transferType: 0,
 				},
 			]),
 		);
@@ -138,10 +147,9 @@ describe('Token attachment', () => {
 			...prepareSendBulkMailWithTokenArguments(sendBulkMailArgs, [
 				{
 					amountOrTokenId: 123,
-					sendTo: user2.address,
+					recipient: user2.address,
 					token: nft1.address,
 					tokenType: 1,
-					transferType: 0,
 				},
 			]),
 		);
@@ -156,17 +164,15 @@ describe('Token attachment', () => {
 			...prepareSendBulkMailWithTokenArguments(sendBulkMailArgs, [
 				{
 					amountOrTokenId: 456,
-					sendTo: user2.address,
+					recipient: user2.address,
 					token: nft1.address,
 					tokenType: 0,
-					transferType: 0,
 				},
 				{
 					amountOrTokenId: 789,
-					sendTo: owner.address,
+					recipient: owner.address,
 					token: nft2.address,
 					tokenType: 0,
-					transferType: 0,
 				},
 			]),
 		);
@@ -194,17 +200,15 @@ describe('Token attachment', () => {
 			...prepareSendBulkMailWithTokenArguments(sendBulkMailArgs, [
 				{
 					amountOrTokenId: 123,
-					sendTo: user2.address,
+					recipient: user2.address,
 					token: nft1.address,
 					tokenType: 1,
-					transferType: 0,
 				},
 				{
 					amountOrTokenId: toWei(300),
-					sendTo: owner.address,
+					recipient: owner.address,
 					token: token1.address,
 					tokenType: 0,
-					transferType: 0,
 				},
 			]),
 		);
@@ -228,10 +232,9 @@ describe('Token attachment', () => {
 			...prepareAddMailRecipientsWithTokenArguments(addMailRecipientsArgs, [
 				{
 					amountOrTokenId: toWei(300),
-					sendTo: user2.address,
+					recipient: user2.address,
 					token: token1.address,
 					tokenType: 0,
-					transferType: 0,
 				},
 			]),
 		);
@@ -243,17 +246,15 @@ describe('Token attachment', () => {
 			...prepareAddMailRecipientsWithTokenArguments(addMailRecipientsArgs, [
 				{
 					amountOrTokenId: toWei(120),
-					sendTo: user2.address,
+					recipient: user2.address,
 					token: token1.address,
 					tokenType: 0,
-					transferType: 0,
 				},
 				{
 					amountOrTokenId: toWei(80),
-					sendTo: owner.address,
+					recipient: owner.address,
 					token: token1.address,
 					tokenType: 0,
-					transferType: 0,
 				},
 			]),
 		);
@@ -274,10 +275,9 @@ describe('Token attachment', () => {
 			...prepareAddMailRecipientsWithTokenArguments(addMailRecipientsArgs, [
 				{
 					amountOrTokenId: 123,
-					sendTo: user2.address,
+					recipient: user2.address,
 					token: nft1.address,
 					tokenType: 1,
-					transferType: 0,
 				},
 			]),
 		);
@@ -292,17 +292,15 @@ describe('Token attachment', () => {
 			...prepareAddMailRecipientsWithTokenArguments(addMailRecipientsArgs, [
 				{
 					amountOrTokenId: 456,
-					sendTo: user2.address,
+					recipient: user2.address,
 					token: nft1.address,
 					tokenType: 0,
-					transferType: 0,
 				},
 				{
 					amountOrTokenId: 789,
-					sendTo: owner.address,
+					recipient: owner.address,
 					token: nft1.address,
 					tokenType: 0,
-					transferType: 0,
 				},
 			]),
 		);
@@ -325,17 +323,15 @@ describe('Token attachment', () => {
 			...prepareAddMailRecipientsWithTokenArguments(addMailRecipientsArgs, [
 				{
 					amountOrTokenId: 123,
-					sendTo: user2.address,
+					recipient: user2.address,
 					token: nft1.address,
 					tokenType: 0,
-					transferType: 0,
 				},
 				{
 					amountOrTokenId: toWei(300),
-					sendTo: owner.address,
+					recipient: owner.address,
 					token: token1.address,
 					tokenType: 0,
-					transferType: 0,
 				},
 			]),
 		);
@@ -354,69 +350,50 @@ describe('Token attachment', () => {
 
 		await token1.connect(user1).mint(toWei(1000));
 		await nft1.connect(user1).mint(123);
-		await token1.connect(user1).approve(ylidePay.address, toWei(300));
-		await nft1.connect(user1).approve(ylidePay.address, 123);
+		await token1.connect(user1).approve(ylideStake.address, toWei(300));
+		await nft1.connect(user1).approve(ylideStake.address, 123);
 
-		await ylidePay.connect(user1).sendBulkMailWithToken(
+		const tx = await ylideStake.connect(user1).sendBulkMailWithToken(
 			...prepareSendBulkMailWithTokenArguments(sendBulkMailArgs, [
 				{
 					amountOrTokenId: toWei(300),
-					sendTo: user2.address,
+					recipient: user2.address,
 					token: token1.address,
 					tokenType: 0,
-					transferType: 1,
 				},
 				{
 					amountOrTokenId: 123,
-					sendTo: user2.address,
+					recipient: owner.address,
 					token: nft1.address,
 					tokenType: 1,
-					transferType: 1,
 				},
 			]),
 		);
+		const receipt = await tx.wait();
+		const contentId = receipt.events?.find(e => e.event === 'TokenAttachment')?.args?.[0];
+
 		expect(await token1.balanceOf(user1.address)).equal(toWei(700));
 		expect(await token1.balanceOf(user2.address)).equal(0);
-		expect(await token1.balanceOf(ylidePay.address)).equal(toWei(300));
+		expect(await token1.balanceOf(ylideStake.address)).equal(toWei(300));
 
 		expect(await nft1.balanceOf(user1.address)).equal(0);
 		expect(await nft1.balanceOf(user2.address)).equal(0);
-		expect(await nft1.balanceOf(ylidePay.address)).equal(1);
+		expect(await nft1.balanceOf(ylideStake.address)).equal(1);
 
-		expect(await nft1.ownerOf(123)).equal(ylidePay.address);
+		expect(await nft1.ownerOf(123)).equal(ylideStake.address);
 
-		expect(await ylidePay.getUserErc20Tokens(user1.address)).deep.equal([]);
-		expect(await ylidePay.getUserErc20Tokens(user2.address)).deep.equal([token1.address]);
-		expect(await ylidePay.getUserErc721Tokens(user1.address)).deep.equal([]);
-		expect(await ylidePay.getUserErc721Tokens(user2.address)).deep.equal([nft1.address]);
-
-		expect(await ylidePay.getBalanceErc20(user2.address, token1.address)).equal(toWei(300));
-		expect(await ylidePay.getTokenIdsErc721(user2.address, nft1.address)).deep.equal([123]);
-
-		await expect(ylidePay.connect(user1).withdrawErc20([token1.address])).to.be.revertedWith('Not in list map');
-		await expect(
-			ylidePay.connect(user1).withdrawErc721([{ token: nft1.address, tokenId: 123 }]),
-		).to.be.revertedWith('Not in list map');
-
-		await ylidePay.connect(user2).withdrawErc20([token1.address]);
-		await ylidePay.connect(user2).withdrawErc721([{ token: nft1.address, tokenId: 123 }]);
+		await ylideStake.connect(user2).withdraw([contentId]);
+		await ylideStake.connect(owner).withdraw([contentId]);
 
 		expect(await token1.balanceOf(user2.address)).equal(toWei(300));
-		expect(await token1.balanceOf(ylidePay.address)).equal(0);
+		expect(await token1.balanceOf(ylideStake.address)).equal(0);
 
 		expect(await nft1.balanceOf(user1.address)).equal(0);
-		expect(await nft1.balanceOf(user2.address)).equal(1);
-		expect(await nft1.balanceOf(ylidePay.address)).equal(0);
+		expect(await nft1.balanceOf(user2.address)).equal(0);
+		expect(await nft1.balanceOf(owner.address)).equal(1);
+		expect(await nft1.balanceOf(ylideStake.address)).equal(0);
 
-		expect(await nft1.ownerOf(123)).equal(user2.address);
-
-		expect(await ylidePay.getUserErc20Tokens(user1.address)).deep.equal([]);
-		expect(await ylidePay.getUserErc20Tokens(user2.address)).deep.equal([]);
-		expect(await ylidePay.getUserErc721Tokens(user1.address)).deep.equal([]);
-		expect(await ylidePay.getUserErc721Tokens(user2.address)).deep.equal([]);
-
-		expect(await ylidePay.getBalanceErc20(user2.address, token1.address)).equal(0);
-		expect(await ylidePay.getTokenIdsErc721(user2.address, nft1.address)).deep.equal([]);
+		expect(await nft1.ownerOf(123)).equal(owner.address);
 	});
 
 	it('It stakes ERC20 and ERC721 type tokens using addMailRecipientsWithToken', async () => {
@@ -424,68 +401,50 @@ describe('Token attachment', () => {
 
 		await token1.connect(user1).mint(toWei(1000));
 		await nft1.connect(user1).mint(123);
-		await token1.connect(user1).approve(ylidePay.address, toWei(300));
-		await nft1.connect(user1).approve(ylidePay.address, 123);
+		await token1.connect(user1).approve(ylideStake.address, toWei(300));
+		await nft1.connect(user1).approve(ylideStake.address, 123);
 
-		await ylidePay.connect(user1).addMailRecipientsWithToken(
+		const tx = await ylideStake.connect(user1).addMailRecipientsWithToken(
 			...prepareAddMailRecipientsWithTokenArguments(addMailRecipientsArgs, [
 				{
 					amountOrTokenId: toWei(300),
-					sendTo: user2.address,
+					recipient: user2.address,
 					token: token1.address,
 					tokenType: 0,
-					transferType: 1,
 				},
 				{
 					amountOrTokenId: 123,
-					sendTo: user2.address,
+					recipient: owner.address,
 					token: nft1.address,
 					tokenType: 1,
-					transferType: 1,
 				},
 			]),
 		);
+
+		const receipt = await tx.wait();
+		const contentId = receipt.events?.find(e => e.event === 'TokenAttachment')?.args?.[0];
+
 		expect(await token1.balanceOf(user1.address)).equal(toWei(700));
 		expect(await token1.balanceOf(user2.address)).equal(0);
-		expect(await token1.balanceOf(ylidePay.address)).equal(toWei(300));
+		expect(await token1.balanceOf(ylideStake.address)).equal(toWei(300));
 
 		expect(await nft1.balanceOf(user1.address)).equal(0);
 		expect(await nft1.balanceOf(user2.address)).equal(0);
-		expect(await nft1.balanceOf(ylidePay.address)).equal(1);
+		expect(await nft1.balanceOf(ylideStake.address)).equal(1);
 
-		expect(await nft1.ownerOf(123)).equal(ylidePay.address);
+		expect(await nft1.ownerOf(123)).equal(ylideStake.address);
 
-		expect(await ylidePay.getUserErc20Tokens(user1.address)).deep.equal([]);
-		expect(await ylidePay.getUserErc20Tokens(user2.address)).deep.equal([token1.address]);
-		expect(await ylidePay.getUserErc721Tokens(user1.address)).deep.equal([]);
-		expect(await ylidePay.getUserErc721Tokens(user2.address)).deep.equal([nft1.address]);
-
-		expect(await ylidePay.getBalanceErc20(user2.address, token1.address)).equal(toWei(300));
-		expect(await ylidePay.getTokenIdsErc721(user2.address, nft1.address)).deep.equal([123]);
-
-		await expect(ylidePay.connect(user1).withdrawErc20([token1.address])).to.be.revertedWith('Not in list map');
-		await expect(
-			ylidePay.connect(user1).withdrawErc721([{ token: nft1.address, tokenId: 123 }]),
-		).to.be.revertedWith('Not in list map');
-
-		await ylidePay.connect(user2).withdrawErc20([token1.address]);
-		await ylidePay.connect(user2).withdrawErc721([{ token: nft1.address, tokenId: 123 }]);
+		await ylideStake.connect(user2).withdraw([contentId]);
+		await ylideStake.connect(owner).withdraw([contentId]);
 
 		expect(await token1.balanceOf(user2.address)).equal(toWei(300));
-		expect(await token1.balanceOf(ylidePay.address)).equal(0);
+		expect(await token1.balanceOf(ylideStake.address)).equal(0);
 
 		expect(await nft1.balanceOf(user1.address)).equal(0);
-		expect(await nft1.balanceOf(user2.address)).equal(1);
-		expect(await nft1.balanceOf(ylidePay.address)).equal(0);
+		expect(await nft1.balanceOf(user2.address)).equal(0);
+		expect(await nft1.balanceOf(owner.address)).equal(1);
+		expect(await nft1.balanceOf(ylideStake.address)).equal(0);
 
-		expect(await nft1.ownerOf(123)).equal(user2.address);
-
-		expect(await ylidePay.getUserErc20Tokens(user1.address)).deep.equal([]);
-		expect(await ylidePay.getUserErc20Tokens(user2.address)).deep.equal([]);
-		expect(await ylidePay.getUserErc721Tokens(user1.address)).deep.equal([]);
-		expect(await ylidePay.getUserErc721Tokens(user2.address)).deep.equal([]);
-
-		expect(await ylidePay.getBalanceErc20(user2.address, token1.address)).equal(0);
-		expect(await ylidePay.getTokenIdsErc721(user2.address, nft1.address)).deep.equal([]);
+		expect(await nft1.ownerOf(123)).equal(owner.address);
 	});
 });

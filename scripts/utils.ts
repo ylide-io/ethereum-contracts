@@ -1,6 +1,7 @@
 import { BigNumberish } from 'ethers';
 import { ethers, network } from 'hardhat';
 import { YlideMailerV9, YlidePay } from 'typechain-types';
+import { IYlideTokenAttachment } from 'typechain-types/contracts/YlidePay';
 import { Snapshot } from './types';
 
 export function toWei(amount: string | number) {
@@ -28,7 +29,7 @@ export const initiateSnapshot = (): Snapshot => ({
 
 export function prepareSendBulkMailWithTokenArguments(
 	args: Parameters<YlideMailerV9['functions']['sendBulkMail(uint256,uint256,uint256[],bytes[],bytes)']>,
-	userInfos: YlidePay.TokenInfoStruct[],
+	userInfos: IYlideTokenAttachment.TransferInfoStruct[],
 ) {
 	const result = [...args] as any;
 	result[5] = userInfos;
@@ -39,7 +40,7 @@ export function prepareAddMailRecipientsWithTokenArguments(
 	args: Parameters<
 		YlideMailerV9['functions']['addMailRecipients(uint256,uint256,uint256,uint16,uint16,uint256[],bytes[])']
 	>,
-	userInfos: YlidePay.TokenInfoStruct[],
+	userInfos: IYlideTokenAttachment.TransferInfoStruct[],
 ) {
 	const result = [...args] as any;
 	result[7] = userInfos;

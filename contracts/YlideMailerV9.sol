@@ -22,7 +22,7 @@ contract YlideMailerV9 is
 
 	mapping(uint256 => uint256) public recipientToMailingFeedJoinEventsIndex;
 
-	address public ylidePay;
+	mapping(address => bool) public isYlideTokenAttachment;
 
 	struct BroadcastFeedV9 {
 		address owner;
@@ -146,8 +146,19 @@ contract YlideMailerV9 is
 		broadcastFeeds[feedId].broadcastFee = _broadcastFee;
 	}
 
-	function setYlidePay(address _ylidePay) external onlyOwner {
-		ylidePay = _ylidePay;
+	function setIsYlideTokenAttachment(
+		address[] calldata ylideContracts,
+		bool[] calldata values
+	) external onlyOwner {
+		if (ylideContracts.length != values.length) {
+			revert();
+		}
+		for (uint256 i; i < ylideContracts.length; ) {
+			isYlideTokenAttachment[ylideContracts[i]] = values[i];
+			unchecked {
+				i++;
+			}
+		}
 	}
 
 	function isBroadcastFeedWriter(uint256 feedId, address addr) public view returns (bool) {
@@ -270,8 +281,8 @@ contract YlideMailerV9 is
 		bytes[] calldata keys,
 		bytes calldata content
 	) public payable notTerminated returns (uint256) {
-		if (msg.sender != ylidePay) {
-			revert("Caller is not YlidePay");
+		if (!isYlideTokenAttachment[msg.sender]) {
+			revert("Caller is not YlideTokenAttachment");
 		}
 		return _sendBulkMail(sender, feedId, uniqueId, recipients, keys, content);
 	}
@@ -330,8 +341,8 @@ contract YlideMailerV9 is
 		uint256[] calldata recipients,
 		bytes[] calldata keys
 	) public payable notTerminated returns (uint256) {
-		if (msg.sender != ylidePay) {
-			revert("Caller is not ylidePay");
+		if (!isYlideTokenAttachment[msg.sender]) {
+			revert("Caller is not YlideTokenAttachment");
 		}
 		return
 			_addMailRecipients(

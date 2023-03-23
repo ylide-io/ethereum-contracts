@@ -8,8 +8,6 @@ import {SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ER
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-import {ListMap} from "./helpers/ListMap.sol";
-
 import {IYlideMailer} from "./interfaces/IYlideMailer.sol";
 import {IYlideTokenAttachment} from "./interfaces/IYlideTokenAttachment.sol";
 
@@ -20,8 +18,6 @@ contract YlideStake is
 	UUPSUpgradeable
 {
 	using SafeERC20Upgradeable for IERC20MetadataUpgradeable;
-	using ListMap for ListMap._uint256;
-	using ListMap for ListMap._address;
 
 	uint256 public constant version = 1;
 
@@ -157,7 +153,10 @@ contract YlideStake is
 	function withdraw(uint256[] calldata contentIds) external whenNotPaused {
 		for (uint256 i; i < contentIds.length; ) {
 			TokenInfo storage tokenInfo = contentIdToUserToTokenInfo[contentIds[i]][msg.sender];
-			if (tokenInfo.claimed == true) {
+			if (tokenInfo.claimed == true || tokenInfo.token == address(0)) {
+				unchecked {
+					i++;
+				}
 				continue;
 			}
 			if (tokenInfo.tokenType == TokenType.ERC20) {
