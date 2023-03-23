@@ -26,4 +26,8 @@ interface IYlideTokenAttachment {
 	);
 
 	function setYlideMailer(IYlideMailer) external;
+
+	function pause() external;
+
+	function unpause() external;
 }

@@ -113,7 +113,7 @@ contract YlideStake is
 		bytes[] calldata keys,
 		bytes calldata content,
 		TransferInfo[] calldata transferInfos
-	) public payable whenNotPaused returns (uint256) {
+	) public whenNotPaused returns (uint256) {
 		uint256 contentId = ylideMailer.sendBulkMail(
 			msg.sender,
 			feedId,
@@ -135,7 +135,7 @@ contract YlideStake is
 		uint256[] calldata recipients,
 		bytes[] calldata keys,
 		TransferInfo[] calldata transferInfos
-	) public payable whenNotPaused returns (uint256) {
+	) public whenNotPaused returns (uint256) {
 		uint256 contentId = ylideMailer.addMailRecipients(
 			msg.sender,
 			feedId,
