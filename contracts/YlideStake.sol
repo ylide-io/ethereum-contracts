@@ -153,7 +153,7 @@ contract YlideStake is
 	function withdraw(uint256[] calldata contentIds) external whenNotPaused {
 		for (uint256 i; i < contentIds.length; ) {
 			TokenInfo storage tokenInfo = contentIdToUserToTokenInfo[contentIds[i]][msg.sender];
-			if (tokenInfo.claimed == true || tokenInfo.token == address(0)) {
+			if (tokenInfo.token == address(0) || tokenInfo.claimed == true) {
 				unchecked {
 					i++;
 				}
@@ -183,6 +183,14 @@ contract YlideStake is
 				i++;
 			}
 		}
+	}
+
+	function pause() external onlyOwner {
+		_pause();
+	}
+
+	function unpause() external onlyOwner {
+		_unpause();
 	}
 
 	function onERC721Received(
