@@ -21,6 +21,11 @@ contract YlideStreamSablier is Owned, Pausable {
 		uint256 stopTime;
 	}
 
+	struct StreamCancelInfo {
+		address recipient;
+		bool success;
+	}
+
 	event TokenAttachment(
 		uint256 indexed contentId,
 		uint256 indexed streamId,
@@ -62,6 +67,11 @@ contract YlideStreamSablier is Owned, Pausable {
 	}
 
 	function _stream(StreamInfo calldata streamInfo, uint256 contentId) internal {
+		IERC20(streamInfo.tokenAddress).safeTransferFrom(
+			msg.sender,
+			address(this),
+			streamInfo.deposit
+		);
 		IERC20(streamInfo.tokenAddress).safeApprove(address(sablier), streamInfo.deposit);
 
 		uint256 streamId = sablier.createStream(
@@ -153,7 +163,7 @@ contract YlideStreamSablier is Owned, Pausable {
 	function withdrawFromStream(uint256 streamId, uint256 amount) external returns (bool) {
 		address sender = streamIdToSender[streamId];
 		(, address recipient, , , , , , ) = sablier.getStream(streamId);
-		if (msg.sender != sender || msg.sender != recipient) {
+		if (msg.sender != sender && msg.sender != recipient) {
 			revert("caller is not the sender or the recipient of the stream");
 		}
 		bool success = sablier.withdrawFromStream(streamId, amount);
@@ -172,11 +182,17 @@ contract YlideStreamSablier is Owned, Pausable {
 	 * @return bool true=success, otherwise false.
 	 */
 	function cancelStream(uint256 streamId) external whenNotPaused returns (bool) {
-		bool success = _cancelStream(streamId);
-		if (success) {
-			_emitStreamCancelled(streamId, 0);
+		StreamCancelInfo memory streamCancelInfo = _cancelStream(streamId);
+		if (streamCancelInfo.success) {
+			emit StreamCancelled(
+				0,
+				streamId,
+				streamCancelInfo.recipient,
+				streamIdToSender[streamId],
+				msg.sender
+			);
 		}
-		return success;
+		return streamCancelInfo.success;
 	}
 
 	function cancelStreamAndSendBulkMail(
@@ -187,8 +203,8 @@ contract YlideStreamSablier is Owned, Pausable {
 		bytes calldata content,
 		uint256 streamId
 	) external whenNotPaused returns (uint256) {
-		bool success = _cancelStream(streamId);
-		if (!success) {
+		StreamCancelInfo memory streamCancelInfo = _cancelStream(streamId);
+		if (!streamCancelInfo.success) {
 			revert("Stream cannot be cancelled");
 		}
 		uint256 contentId = ylideMailer.sendBulkMail(
@@ -199,7 +215,13 @@ contract YlideStreamSablier is Owned, Pausable {
 			keys,
 			content
 		);
-		_emitStreamCancelled(streamId, contentId);
+		emit StreamCancelled(
+			contentId,
+			streamId,
+			streamCancelInfo.recipient,
+			streamIdToSender[streamId],
+			msg.sender
+		);
 		return contentId;
 	}
 
@@ -213,8 +235,8 @@ contract YlideStreamSablier is Owned, Pausable {
 		bytes[] calldata keys,
 		uint256 streamId
 	) external whenNotPaused returns (uint256) {
-		bool success = _cancelStream(streamId);
-		if (!success) {
+		StreamCancelInfo memory streamCancelInfo = _cancelStream(streamId);
+		if (!streamCancelInfo.success) {
 			revert("Stream cannot be cancelled");
 		}
 		uint256 contentId = ylideMailer.addMailRecipients(
@@ -227,36 +249,37 @@ contract YlideStreamSablier is Owned, Pausable {
 			recipients,
 			keys
 		);
-		_emitStreamCancelled(streamId, contentId);
-		return contentId;
-	}
-
-	function _cancelStream(uint256 streamId) internal returns (bool) {
-		address sender = streamIdToSender[streamId];
-		(, address recipient, , address tokenAddress, , , , ) = sablier.getStream(streamId);
-		if (msg.sender != sender || msg.sender != recipient) {
-			revert("caller is not the sender or the recipient of the stream");
-		}
-		uint256 balance = sablier.balanceOf(streamId, address(this));
-		bool result = sablier.cancelStream(streamId);
-		if (result && balance > 0) {
-			IERC20(tokenAddress).safeTransfer(sender, balance);
-		}
-		return result;
-	}
-
-	function _emitStreamCancelled(uint256 streamId, uint256 contentId) internal {
-		(, address recipient, , , , , , ) = sablier.getStream(streamId);
 		emit StreamCancelled(
 			contentId,
 			streamId,
-			recipient,
+			streamCancelInfo.recipient,
 			streamIdToSender[streamId],
 			msg.sender
 		);
+		return contentId;
+	}
+
+	function _cancelStream(
+		uint256 streamId
+	) internal returns (StreamCancelInfo memory streamCancelInfo) {
+		address sender = streamIdToSender[streamId];
+		(, address recipient, , address tokenAddress, , , , ) = sablier.getStream(streamId);
+		streamCancelInfo.recipient = recipient;
+		if (msg.sender != sender && msg.sender != recipient) {
+			revert("caller is not the sender or the recipient of the stream");
+		}
+		uint256 balance = sablier.balanceOf(streamId, address(this));
+		streamCancelInfo.success = sablier.cancelStream(streamId);
+		if (streamCancelInfo.success && balance > 0) {
+			IERC20(tokenAddress).safeTransfer(sender, balance);
+		}
 	}
 
 	function balanceOf(uint256 streamId, address who) public view returns (uint256 balance) {
+		address sender = streamIdToSender[streamId];
+		if (who == sender) {
+			who = address(this);
+		}
 		return sablier.balanceOf(streamId, who);
 	}
 

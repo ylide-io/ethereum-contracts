@@ -1,12 +1,18 @@
-import { BigNumberish } from 'ethers';
 import { ethers, network } from 'hardhat';
-import { YlideMailerV9, YlidePay } from 'typechain-types';
+import { YlideMailerV9, YlidePay, YlideStreamSablier } from 'typechain-types';
 import { IYlideTokenAttachment } from 'typechain-types/contracts/YlidePay';
 import { Snapshot } from './types';
 
 export function toWei(amount: string | number) {
 	return ethers.utils.parseUnits(String(amount), 18);
 }
+
+export function toWei6(amount: string | number) {
+	return ethers.utils.parseUnits(String(amount), 6);
+}
+
+export const currentTimestamp = () =>
+	ethers.provider.getBlock(ethers.provider.getBlockNumber()).then(block => block.timestamp);
 
 export const makeSnapshot = async (snapshot: Snapshot | undefined): Promise<Snapshot> => {
 	const snap = await network.provider.send('evm_snapshot');
@@ -29,20 +35,40 @@ export const initiateSnapshot = (): Snapshot => ({
 
 export function prepareSendBulkMailWithTokenArguments(
 	args: Parameters<YlideMailerV9['functions']['sendBulkMail(uint256,uint256,uint256[],bytes[],bytes)']>,
-	userInfos: IYlideTokenAttachment.TransferInfoStruct[],
+	infos: IYlideTokenAttachment.TransferInfoStruct[],
+): Parameters<YlidePay['functions']['sendBulkMailWithToken']>;
+export function prepareSendBulkMailWithTokenArguments(
+	args: Parameters<YlideMailerV9['functions']['sendBulkMail(uint256,uint256,uint256[],bytes[],bytes)']>,
+	infos: YlideStreamSablier.StreamInfoStruct[],
+): Parameters<YlideStreamSablier['functions']['sendBulkMailWithToken']>;
+export function prepareSendBulkMailWithTokenArguments(
+	args: Parameters<YlideMailerV9['functions']['sendBulkMail(uint256,uint256,uint256[],bytes[],bytes)']>,
+	infos: any,
 ) {
 	const result = [...args] as any;
-	result[5] = userInfos;
-	return result as Parameters<YlidePay['functions']['sendBulkMailWithToken']>;
+	result[5] = infos;
+	return result;
 }
 
 export function prepareAddMailRecipientsWithTokenArguments(
 	args: Parameters<
 		YlideMailerV9['functions']['addMailRecipients(uint256,uint256,uint256,uint16,uint16,uint256[],bytes[])']
 	>,
-	userInfos: IYlideTokenAttachment.TransferInfoStruct[],
+	infos: IYlideTokenAttachment.TransferInfoStruct[],
+): Parameters<YlidePay['functions']['addMailRecipientsWithToken']>;
+export function prepareAddMailRecipientsWithTokenArguments(
+	args: Parameters<
+		YlideMailerV9['functions']['addMailRecipients(uint256,uint256,uint256,uint16,uint16,uint256[],bytes[])']
+	>,
+	infos: YlideStreamSablier.StreamInfoStruct[],
+): Parameters<YlideStreamSablier['functions']['addMailRecipientsWithToken']>;
+export function prepareAddMailRecipientsWithTokenArguments(
+	args: Parameters<
+		YlideMailerV9['functions']['addMailRecipients(uint256,uint256,uint256,uint16,uint16,uint256[],bytes[])']
+	>,
+	userInfos: any,
 ) {
 	const result = [...args] as any;
 	result[7] = userInfos;
-	return result as Parameters<YlidePay['functions']['addMailRecipientsWithToken']>;
+	return result;
 }

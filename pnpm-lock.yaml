@@ -4,13 +4,14 @@ specifiers:
   '@ethersproject/abi': 5.7.0
   '@ethersproject/providers': 5.7.2
   '@nomicfoundation/hardhat-chai-matchers': 1.0.5
+  '@nomicfoundation/hardhat-network-helpers': ^1.0.8
   '@nomicfoundation/hardhat-toolbox': 2.0.1
-  '@nomiclabs/hardhat-ethers': 2.0.0
+  '@nomiclabs/hardhat-ethers': 2.2.2
   '@nomiclabs/hardhat-etherscan': 3.1.5
   '@nomiclabs/hardhat-solhint': 3.0.0
   '@openzeppelin/contracts': 4.8.2
-  '@openzeppelin/contracts-upgradeable': ^4.8.2
-  '@openzeppelin/hardhat-upgrades': ^1.22.1
+  '@openzeppelin/contracts-upgradeable': 4.8.2
+  '@openzeppelin/hardhat-upgrades': 1.22.1
   '@typechain/ethers-v5': 10.2.0
   '@typechain/hardhat': 6.1.5
   '@types/mocha': 10.0.1
@@ -18,6 +19,7 @@ specifiers:
   '@typescript-eslint/parser': 5.55.0
   '@ylide/sdk': 0.6.1
   chai: 4.3.7
+  dotenv: ^16.0.3
   ethers: 5.7.2
   hardhat: 2.12.6
   hardhat-contract-sizer: 2.8.0
@@ -35,14 +37,15 @@ dependencies:
   ethers: 5.7.2
 
 devDependencies:
-  '@nomicfoundation/hardhat-chai-matchers': 1.0.5_unz2qs2kzie3y6wmha7tvohuw4
-  '@nomicfoundation/hardhat-toolbox': 2.0.1_zicjj6belfxgskyhobjpltrrsy
-  '@nomiclabs/hardhat-ethers': 2.0.0_n3rx3kkfcos7o3ij5m4a4n7ngq
+  '@nomicfoundation/hardhat-chai-matchers': 1.0.5_6lwdgb6qfbcwwoa4qxnor6tsvi
+  '@nomicfoundation/hardhat-network-helpers': 1.0.8_hardhat@2.12.6
+  '@nomicfoundation/hardhat-toolbox': 2.0.1_jwko3pc6lmxhrkkqihdakuaomy
+  '@nomiclabs/hardhat-ethers': 2.2.2_n3rx3kkfcos7o3ij5m4a4n7ngq
   '@nomiclabs/hardhat-etherscan': 3.1.5_hardhat@2.12.6
   '@nomiclabs/hardhat-solhint': 3.0.0_hardhat@2.12.6
   '@openzeppelin/contracts': 4.8.2
   '@openzeppelin/contracts-upgradeable': 4.8.2
-  '@openzeppelin/hardhat-upgrades': 1.22.1_iylslxbf5tbs6tun4prcgogolq
+  '@openzeppelin/hardhat-upgrades': 1.22.1_gxap3msybgqrozsety5vd6mh3y
   '@typechain/ethers-v5': 10.2.0_k6bdrczrdxrxopgjlr5kov2hw4
   '@typechain/hardhat': 6.1.5_flitjyqkwkdrfmvmmkefmykn34
   '@types/mocha': 10.0.1
@@ -50,6 +53,7 @@ devDependencies:
   '@typescript-eslint/parser': 5.55.0_typescript@4.9.4
   '@ylide/sdk': 0.6.1
   chai: 4.3.7
+  dotenv: 16.0.3
   hardhat: 2.12.6_z6wznmtyb6ovnulj6iujpct7um
   hardhat-contract-sizer: 2.8.0_hardhat@2.12.6
   hardhat-gas-reporter: 1.0.9_hardhat@2.12.6
@@ -656,7 +660,7 @@ packages:
       - supports-color
     dev: true
 
-  /@nomicfoundation/hardhat-chai-matchers/1.0.5_unz2qs2kzie3y6wmha7tvohuw4:
+  /@nomicfoundation/hardhat-chai-matchers/1.0.5_6lwdgb6qfbcwwoa4qxnor6tsvi:
     resolution: {integrity: sha512-+W5C/+5FHI2xBajUN9THSNc1UP6FUsA7LeLmfnaC9VMi/50/DEjjxd8OmizEXgV1Bjck7my4NVQLL1Ti39FkpA==}
     peerDependencies:
       '@nomiclabs/hardhat-ethers': ^2.0.0
@@ -665,7 +669,7 @@ packages:
       hardhat: ^2.9.4
     dependencies:
       '@ethersproject/abi': 5.7.0
-      '@nomiclabs/hardhat-ethers': 2.0.0_n3rx3kkfcos7o3ij5m4a4n7ngq
+      '@nomiclabs/hardhat-ethers': 2.2.2_n3rx3kkfcos7o3ij5m4a4n7ngq
       '@types/chai-as-promised': 7.1.5
       chai: 4.3.7
       chai-as-promised: 7.1.1_chai@4.3.7
@@ -676,7 +680,16 @@ packages:
       ordinal: 1.0.3
     dev: true
 
-  /@nomicfoundation/hardhat-toolbox/2.0.1_zicjj6belfxgskyhobjpltrrsy:
+  /@nomicfoundation/hardhat-network-helpers/1.0.8_hardhat@2.12.6:
+    resolution: {integrity: sha512-MNqQbzUJZnCMIYvlniC3U+kcavz/PhhQSsY90tbEtUyMj/IQqsLwIRZa4ctjABh3Bz0KCh9OXUZ7Yk/d9hr45Q==}
+    peerDependencies:
+      hardhat: ^2.9.5
+    dependencies:
+      ethereumjs-util: 7.1.5
+      hardhat: 2.12.6_z6wznmtyb6ovnulj6iujpct7um
+    dev: true
+
+  /@nomicfoundation/hardhat-toolbox/2.0.1_jwko3pc6lmxhrkkqihdakuaomy:
     resolution: {integrity: sha512-/pr8m9xlqiNlq6fXv4hEPNwdNwUhysoB2qbDCKqERfPpq34EydUQTC3Vis4aIea8RLwSrU8sDXFdv4TQxYstKw==}
     peerDependencies:
       '@ethersproject/abi': ^5.4.7
@@ -701,8 +714,9 @@ packages:
     dependencies:
       '@ethersproject/abi': 5.7.0
       '@ethersproject/providers': 5.7.2
-      '@nomicfoundation/hardhat-chai-matchers': 1.0.5_unz2qs2kzie3y6wmha7tvohuw4
-      '@nomiclabs/hardhat-ethers': 2.0.0_n3rx3kkfcos7o3ij5m4a4n7ngq
+      '@nomicfoundation/hardhat-chai-matchers': 1.0.5_6lwdgb6qfbcwwoa4qxnor6tsvi
+      '@nomicfoundation/hardhat-network-helpers': 1.0.8_hardhat@2.12.6
+      '@nomiclabs/hardhat-ethers': 2.2.2_n3rx3kkfcos7o3ij5m4a4n7ngq
       '@nomiclabs/hardhat-etherscan': 3.1.5_hardhat@2.12.6
       '@typechain/ethers-v5': 10.2.0_k6bdrczrdxrxopgjlr5kov2hw4
       '@typechain/hardhat': 6.1.5_flitjyqkwkdrfmvmmkefmykn34
@@ -823,8 +837,8 @@ packages:
       '@nomicfoundation/solidity-analyzer-win32-x64-msvc': 0.1.0
     dev: true
 
-  /@nomiclabs/hardhat-ethers/2.0.0_n3rx3kkfcos7o3ij5m4a4n7ngq:
-    resolution: {integrity: sha512-fIi6XP9PgKqwSNVcLDr6S5hvGlc21PendaLD5eGdXEXc9aYQ0OJX8Mk3evs+p78x7W9n9U3ZcKtTiGc1+YScDw==}
+  /@nomiclabs/hardhat-ethers/2.2.2_n3rx3kkfcos7o3ij5m4a4n7ngq:
+    resolution: {integrity: sha512-NLDlDFL2us07C0jB/9wzvR0kuLivChJWCXTKcj3yqjZqMoYp7g7wwS157F70VHx/+9gHIBGzak5pKDwG8gEefA==}
     peerDependencies:
       ethers: ^5.0.0
       hardhat: ^2.0.0
@@ -870,7 +884,7 @@ packages:
     resolution: {integrity: sha512-kEUOgPQszC0fSYWpbh2kT94ltOJwj1qfT2DWo+zVttmGmf97JZ99LspePNaeeaLhCImaHVeBbjaQFZQn7+Zc5g==}
     dev: true
 
-  /@openzeppelin/hardhat-upgrades/1.22.1_iylslxbf5tbs6tun4prcgogolq:
+  /@openzeppelin/hardhat-upgrades/1.22.1_gxap3msybgqrozsety5vd6mh3y:
     resolution: {integrity: sha512-MdoitCTLl4zwMU8MeE/bCj+7JMWBEvd38XqJkw36PkJrXlbv6FedDVCPoumMAhpmtymm0nTwTYYklYG+L6WiiQ==}
     hasBin: true
     peerDependencies:
@@ -883,7 +897,7 @@ packages:
       '@nomiclabs/harhdat-etherscan':
         optional: true
     dependencies:
-      '@nomiclabs/hardhat-ethers': 2.0.0_n3rx3kkfcos7o3ij5m4a4n7ngq
+      '@nomiclabs/hardhat-ethers': 2.2.2_n3rx3kkfcos7o3ij5m4a4n7ngq
       '@nomiclabs/hardhat-etherscan': 3.1.5_hardhat@2.12.6
       '@openzeppelin/upgrades-core': 1.24.1
       chalk: 4.1.2
@@ -2177,6 +2191,11 @@ packages:
     engines: {node: '>=8'}
     dependencies:
       path-type: 4.0.0
+    dev: true
+
+  /dotenv/16.0.3:
+    resolution: {integrity: sha512-7GO6HghkA5fYG9TYnNxi14/7K9f5occMlp3zXAuSxn7CKCxt9xbNWG7yF8hTCSUchlfWSe3uLmlPfigevRItzQ==}
+    engines: {node: '>=12'}
     dev: true
 
   /ecc-jsbn/0.1.2:
