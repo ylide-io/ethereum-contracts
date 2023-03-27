@@ -1,6 +1,6 @@
 import { ethers, network } from 'hardhat';
-import { YlideMailerV9, YlidePay, YlideStreamSablier } from 'typechain-types';
-import { IYlideTokenAttachment } from 'typechain-types/contracts/YlidePay';
+import { YlideMailerV9, YlidePayV1, YlideStreamSablierV1 } from 'typechain-types';
+import { IYlideTokenAttachment } from 'typechain-types/contracts/YlidePayV1';
 import { Snapshot } from './types';
 
 export function toWei(amount: string | number) {
@@ -36,11 +36,11 @@ export const initiateSnapshot = (): Snapshot => ({
 export function prepareSendBulkMailWithTokenArguments(
 	args: Parameters<YlideMailerV9['functions']['sendBulkMail(uint256,uint256,uint256[],bytes[],bytes)']>,
 	infos: IYlideTokenAttachment.TransferInfoStruct[],
-): Parameters<YlidePay['functions']['sendBulkMailWithToken']>;
+): Parameters<YlidePayV1['functions']['sendBulkMailWithToken']>;
 export function prepareSendBulkMailWithTokenArguments(
 	args: Parameters<YlideMailerV9['functions']['sendBulkMail(uint256,uint256,uint256[],bytes[],bytes)']>,
-	infos: YlideStreamSablier.StreamInfoStruct[],
-): Parameters<YlideStreamSablier['functions']['sendBulkMailWithToken']>;
+	infos: YlideStreamSablierV1.StreamInfoStruct[],
+): Parameters<YlideStreamSablierV1['functions']['sendBulkMailWithToken']>;
 export function prepareSendBulkMailWithTokenArguments(
 	args: Parameters<YlideMailerV9['functions']['sendBulkMail(uint256,uint256,uint256[],bytes[],bytes)']>,
 	infos: any,
@@ -55,13 +55,13 @@ export function prepareAddMailRecipientsWithTokenArguments(
 		YlideMailerV9['functions']['addMailRecipients(uint256,uint256,uint256,uint16,uint16,uint256[],bytes[])']
 	>,
 	infos: IYlideTokenAttachment.TransferInfoStruct[],
-): Parameters<YlidePay['functions']['addMailRecipientsWithToken']>;
+): Parameters<YlidePayV1['functions']['addMailRecipientsWithToken']>;
 export function prepareAddMailRecipientsWithTokenArguments(
 	args: Parameters<
 		YlideMailerV9['functions']['addMailRecipients(uint256,uint256,uint256,uint16,uint16,uint256[],bytes[])']
 	>,
-	infos: YlideStreamSablier.StreamInfoStruct[],
-): Parameters<YlideStreamSablier['functions']['addMailRecipientsWithToken']>;
+	infos: YlideStreamSablierV1.StreamInfoStruct[],
+): Parameters<YlideStreamSablierV1['functions']['addMailRecipientsWithToken']>;
 export function prepareAddMailRecipientsWithTokenArguments(
 	args: Parameters<
 		YlideMailerV9['functions']['addMailRecipients(uint256,uint256,uint256,uint16,uint16,uint256[],bytes[])']

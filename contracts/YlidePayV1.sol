@@ -11,7 +11,7 @@ import {Owned} from "./helpers/Owned.sol";
 import {IYlideMailer} from "./interfaces/IYlideMailer.sol";
 import {IYlideTokenAttachment} from "./interfaces/IYlideTokenAttachment.sol";
 
-contract YlidePay is IYlideTokenAttachment, Owned, Pausable {
+contract YlidePayV1 is IYlideTokenAttachment, Owned, Pausable {
 	using SafeERC20 for IERC20;
 
 	uint256 public constant version = 1;

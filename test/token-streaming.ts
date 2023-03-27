@@ -4,7 +4,7 @@ import { expect } from 'chai';
 import { BigNumber } from 'ethers';
 import { ethers, network } from 'hardhat';
 import { before, describe } from 'mocha';
-import { ERC20, YlideMailerV9, YlideStreamSablier } from 'typechain-types';
+import { ERC20, YlideMailerV9, YlideStreamSablierV1 } from 'typechain-types';
 import {
 	currentTimestamp,
 	prepareAddMailRecipientsWithTokenArguments,
@@ -20,7 +20,7 @@ const WHALE_USDC = '0xCFFAd3200574698b78f32232aa9D63eABD290703';
 describe('Token streaming', () => {
 	let usdc: ERC20;
 	let ylideMailer: YlideMailerV9;
-	let ylideStreamSablier: YlideStreamSablier;
+	let ylideStreamSablier: YlideStreamSablierV1;
 	let owner: SignerWithAddress;
 	let user1: SignerWithAddress;
 	let user2: SignerWithAddress;
@@ -44,8 +44,8 @@ describe('Token streaming', () => {
 		[user1, user2] = await ethers.getSigners();
 		ylideMailer = (await ethers.getContractFactory('YlideMailerV9', owner).then(f => f.deploy())) as YlideMailerV9;
 		ylideStreamSablier = (await ethers
-			.getContractFactory('YlideStreamSablier', owner)
-			.then(f => f.deploy())) as YlideStreamSablier;
+			.getContractFactory('YlideStreamSablierV1', owner)
+			.then(f => f.deploy())) as YlideStreamSablierV1;
 		usdc = await ethers.getContractAt('ERC20', USDC_ADDRESS, owner);
 		const uniqueId = 123;
 		const tx = await ylideMailer.createMailingFeed('768768768768121341');
@@ -60,14 +60,14 @@ describe('Token streaming', () => {
 		await ylideMailer.connect(owner).setIsYlideTokenAttachment([ylideStreamSablier.address], [true]);
 	});
 
-	it('Owner can set ylideMailer in YlideStreamSablier', async () => {
+	it('Owner can set ylideMailer in YlideStreamSablierV1', async () => {
 		await expect(ylideStreamSablier.connect(user1).setYlideMailer(ethers.Wallet.createRandom().address)).to.be
 			.reverted;
 		await ylideStreamSablier.connect(owner).setYlideMailer(ylideMailer.address);
 		expect(await ylideStreamSablier.ylideMailer()).equal(ylideMailer.address);
 	});
 
-	it('Owner should be able to set sablier in YlideStreamSablier', async () => {
+	it('Owner should be able to set sablier in YlideStreamSablierV1', async () => {
 		await expect(ylideStreamSablier.connect(user1).setSablier(ethers.Wallet.createRandom().address)).to.be.reverted;
 		await ylideStreamSablier.connect(owner).setSablier(SABLIER_ADDRESS);
 		expect(await ylideStreamSablier.sablier()).equal(SABLIER_ADDRESS);
@@ -311,7 +311,7 @@ describe('Token streaming', () => {
 		await ylideStreamSablier
 			.connect(owner)
 			.cancelStreamAndSendBulkMail(
-				...(args as Parameters<YlideStreamSablier['functions']['cancelStreamAndSendBulkMail']>),
+				...(args as Parameters<YlideStreamSablierV1['functions']['cancelStreamAndSendBulkMail']>),
 			);
 		expect(await usdc.balanceOf(owner.address)).equal(ownerUsdcBalanceInitial);
 	});
@@ -347,7 +347,7 @@ describe('Token streaming', () => {
 		await ylideStreamSablier
 			.connect(owner)
 			.cancelStreamAndAddMailRecipients(
-				...(args as Parameters<YlideStreamSablier['functions']['cancelStreamAndAddMailRecipients']>),
+				...(args as Parameters<YlideStreamSablierV1['functions']['cancelStreamAndAddMailRecipients']>),
 			);
 		expect(await usdc.balanceOf(owner.address)).equal(ownerUsdcBalanceInitial);
 	});

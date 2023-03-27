@@ -2,7 +2,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { expect } from 'chai';
 import { ethers, upgrades } from 'hardhat';
 import { before, describe, it } from 'mocha';
-import { MockERC20, MockERC721, YlideMailerV9, YlidePay, YlideStake } from 'typechain-types';
+import { MockERC20, MockERC721, YlideMailerV9, YlidePayV1, YlideStakeV1 } from 'typechain-types';
 import {
 	backToSnapshot,
 	initiateSnapshot,
@@ -18,8 +18,8 @@ describe('Token attachment', () => {
 	let nft1: MockERC721;
 	let nft2: MockERC721;
 	let ylideMailer: YlideMailerV9;
-	let ylidePay: YlidePay;
-	let ylideStake: YlideStake;
+	let ylidePay: YlidePayV1;
+	let ylideStake: YlideStakeV1;
 	let owner: SignerWithAddress;
 	let user1: SignerWithAddress;
 	let user2: SignerWithAddress;
@@ -35,13 +35,13 @@ describe('Token attachment', () => {
 	before(async () => {
 		[owner, user1, user2] = await ethers.getSigners();
 		ylideMailer = (await ethers.getContractFactory('YlideMailerV9', owner).then(f => f.deploy())) as YlideMailerV9;
-		ylidePay = (await ethers.getContractFactory('YlidePay', owner).then(f => f.deploy())) as YlidePay;
-		ylideStake = (await ethers.getContractFactory('YlideStake', owner).then(f =>
+		ylidePay = (await ethers.getContractFactory('YlidePayV1', owner).then(f => f.deploy())) as YlidePayV1;
+		ylideStake = (await ethers.getContractFactory('YlideStakeV1', owner).then(f =>
 			upgrades.deployProxy(f, {
 				initializer: 'initialize',
 				kind: 'uups',
 			}),
-		)) as YlideStake;
+		)) as YlideStakeV1;
 		token1 = (await ethers.getContractFactory('MockERC20').then(f => f.deploy('token1', 'token1'))) as MockERC20;
 		token2 = (await ethers.getContractFactory('MockERC20').then(f => f.deploy('token2', 'token2'))) as MockERC20;
 		nft1 = (await ethers.getContractFactory('MockERC721').then(f => f.deploy('nft1', 'nft1'))) as MockERC721;

@@ -10,7 +10,7 @@ import {Owned} from "./helpers/Owned.sol";
 import {IYlideMailer} from "./interfaces/IYlideMailer.sol";
 import {ISablier} from "./interfaces/ISablier.sol";
 
-contract YlideStreamSablier is Owned, Pausable {
+contract YlideStreamSablierV1 is Owned, Pausable {
 	using SafeERC20 for IERC20;
 
 	struct StreamInfo {

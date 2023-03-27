@@ -11,7 +11,7 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {IYlideMailer} from "./interfaces/IYlideMailer.sol";
 import {IYlideTokenAttachment} from "./interfaces/IYlideTokenAttachment.sol";
 
-contract YlideStake is
+contract YlideStakeV1 is
 	IYlideTokenAttachment,
 	OwnableUpgradeable,
 	PausableUpgradeable,
