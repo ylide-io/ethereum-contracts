@@ -9,8 +9,9 @@ import {Owned} from "./helpers/Owned.sol";
 
 import {IYlideMailer} from "./interfaces/IYlideMailer.sol";
 import {ISablier} from "./interfaces/ISablier.sol";
+import {IYlideTokenAttachment} from "./interfaces/IYlideTokenAttachment.sol";
 
-contract YlideStreamSablierV1 is Owned, Pausable {
+contract YlideStreamSablierV1 is IYlideTokenAttachment, Owned, Pausable {
 	using SafeERC20 for IERC20;
 
 	struct StreamInfo {
@@ -56,10 +57,14 @@ contract YlideStreamSablierV1 is Owned, Pausable {
 	// streamId => sender
 	mapping(uint256 => address) streamIdToSender;
 
-	constructor() {}
+	constructor() Owned() Pausable() {}
 
-	function setYlideMailer(IYlideMailer _ylideMailer) external onlyOwner {
-		ylideMailer = _ylideMailer;
+	function contractType() public pure returns (ContractType) {
+		return ContractType.StreamSablier;
+	}
+
+	function setYlideMailer(address _ylideMailer) external onlyOwner {
+		ylideMailer = IYlideMailer(_ylideMailer);
 	}
 
 	function setSablier(ISablier _sablier) external onlyOwner {

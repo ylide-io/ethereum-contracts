@@ -9,19 +9,23 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {Owned} from "./helpers/Owned.sol";
 
 import {IYlideMailer} from "./interfaces/IYlideMailer.sol";
-import {IYlideTokenAttachment} from "./interfaces/IYlideTokenAttachment.sol";
+import {IYlidePayStake} from "./interfaces/IYlidePayStake.sol";
 
-contract YlidePayV1 is IYlideTokenAttachment, Owned, Pausable {
+contract YlidePayV1 is IYlidePayStake, Owned, Pausable {
 	using SafeERC20 for IERC20;
 
 	uint256 public constant version = 1;
 
 	IYlideMailer public ylideMailer;
 
-	constructor() {}
+	constructor() Owned() Pausable() {}
 
-	function setYlideMailer(IYlideMailer _ylideMailer) external onlyOwner {
-		ylideMailer = _ylideMailer;
+	function contractType() public pure returns (ContractType) {
+		return ContractType.Pay;
+	}
+
+	function setYlideMailer(address _ylideMailer) external onlyOwner {
+		ylideMailer = IYlideMailer(_ylideMailer);
 	}
 
 	function _safeTransferFrom(TransferInfo calldata transferInfo, uint256 contentId) internal {

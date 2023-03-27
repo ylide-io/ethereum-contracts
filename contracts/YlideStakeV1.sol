@@ -9,14 +9,9 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 import {IYlideMailer} from "./interfaces/IYlideMailer.sol";
-import {IYlideTokenAttachment} from "./interfaces/IYlideTokenAttachment.sol";
+import {IYlidePayStake} from "./interfaces/IYlidePayStake.sol";
 
-contract YlideStakeV1 is
-	IYlideTokenAttachment,
-	OwnableUpgradeable,
-	PausableUpgradeable,
-	UUPSUpgradeable
-{
+contract YlideStakeV1 is IYlidePayStake, OwnableUpgradeable, PausableUpgradeable, UUPSUpgradeable {
 	using SafeERC20Upgradeable for IERC20MetadataUpgradeable;
 
 	uint256 public constant version = 1;
@@ -56,8 +51,12 @@ contract YlideStakeV1 is
 		address newImplementation
 	) internal virtual override onlyOwner whenPaused {}
 
-	function setYlideMailer(IYlideMailer _ylideMailer) external onlyOwner {
-		ylideMailer = _ylideMailer;
+	function contractType() public pure returns (ContractType) {
+		return ContractType.Stake;
+	}
+
+	function setYlideMailer(address _ylideMailer) external onlyOwner {
+		ylideMailer = IYlideMailer(_ylideMailer);
 	}
 
 	function _stake(TransferInfo calldata transferInfo, uint256 contentId) internal {

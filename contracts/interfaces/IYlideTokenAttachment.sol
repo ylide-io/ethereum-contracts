@@ -1,31 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import {IYlideMailer} from "./IYlideMailer.sol";
-
 interface IYlideTokenAttachment {
-	struct TransferInfo {
-		uint256 amountOrTokenId;
-		address recipient;
-		address token;
-		TokenType tokenType;
+	enum ContractType {
+		Pay,
+		Stake,
+		StreamSablier
 	}
 
-	enum TokenType {
-		ERC20,
-		ERC721
-	}
+	function contractType() external pure returns (ContractType);
 
-	event TokenAttachment(
-		uint256 indexed contentId,
-		uint256 amountOrTokenId,
-		address indexed recipient,
-		address indexed sender,
-		address token,
-		TokenType tokenType
-	);
-
-	function setYlideMailer(IYlideMailer) external;
+	function setYlideMailer(address) external;
 
 	function pause() external;
 

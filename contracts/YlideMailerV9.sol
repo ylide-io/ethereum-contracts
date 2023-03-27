@@ -42,13 +42,26 @@ contract YlideMailerV9 is
 		mapping(uint256 => uint256) recipientMessagesCount;
 	}
 
+	struct AddMailRecipientsArgs {
+		address sender;
+		uint256 feedId;
+		uint256 uniqueId;
+		uint256 firstBlockNumber;
+		uint16 partsCount;
+		uint16 blockCountLock;
+		uint256[] recipients;
+		bytes[] keys;
+		address tokenAttachment;
+	}
+
 	event MailPush(
 		uint256 indexed recipient,
 		uint256 indexed feedId,
 		address sender,
 		uint256 contentId,
 		uint256 previousFeedEventsIndex,
-		bytes key
+		bytes key,
+		address tokenAttachment // address of contract handling token attachment
 	);
 	event BroadcastPush(
 		address indexed sender,
@@ -239,7 +252,8 @@ contract YlideMailerV9 is
 		uint256 rec,
 		address sender,
 		uint256 contentId,
-		bytes memory key
+		bytes memory key,
+		address tokenAttachment
 	) internal {
 		if (mailingFeeds[feedId].owner == address(0)) {
 			revert("Feed does not exist");
@@ -260,7 +274,7 @@ contract YlideMailerV9 is
 		);
 		// write anything to map - 20k gas. think about it
 		mailingFeeds[feedId].recipientMessagesCount[rec] += 1;
-		emit MailPush(rec, feedId, sender, contentId, currentFeed, key);
+		emit MailPush(rec, feedId, sender, contentId, currentFeed, key, tokenAttachment);
 	}
 
 	function sendBulkMail(
@@ -270,7 +284,7 @@ contract YlideMailerV9 is
 		bytes[] calldata keys,
 		bytes calldata content
 	) public payable notTerminated returns (uint256) {
-		return _sendBulkMail(msg.sender, feedId, uniqueId, recipients, keys, content);
+		return _sendBulkMail(msg.sender, feedId, uniqueId, recipients, keys, content, address(0));
 	}
 
 	function sendBulkMail(
@@ -284,7 +298,7 @@ contract YlideMailerV9 is
 		if (!isYlideTokenAttachment[msg.sender]) {
 			revert("Caller is not YlideTokenAttachment");
 		}
-		return _sendBulkMail(sender, feedId, uniqueId, recipients, keys, content);
+		return _sendBulkMail(sender, feedId, uniqueId, recipients, keys, content, msg.sender);
 	}
 
 	function _sendBulkMail(
@@ -293,14 +307,15 @@ contract YlideMailerV9 is
 		uint256 uniqueId,
 		uint256[] calldata recipients,
 		bytes[] calldata keys,
-		bytes calldata content
+		bytes calldata content,
+		address tokenAttachment
 	) internal notTerminated returns (uint256) {
 		uint256 contentId = buildContentId(sender, uniqueId, block.number, 1, 0);
 
 		emit MessageContent(contentId, sender, 1, 0, content);
 
 		for (uint i = 0; i < recipients.length; i++) {
-			emitMailPush(feedId, recipients[i], sender, contentId, keys[i]);
+			emitMailPush(feedId, recipients[i], sender, contentId, keys[i], tokenAttachment);
 		}
 
 		payOut(1, recipients.length, 0);
@@ -320,14 +335,17 @@ contract YlideMailerV9 is
 	) public payable notTerminated returns (uint256) {
 		return
 			_addMailRecipients(
-				msg.sender,
-				feedId,
-				uniqueId,
-				firstBlockNumber,
-				partsCount,
-				blockCountLock,
-				recipients,
-				keys
+				AddMailRecipientsArgs({
+					sender: msg.sender,
+					feedId: feedId,
+					uniqueId: uniqueId,
+					firstBlockNumber: firstBlockNumber,
+					partsCount: partsCount,
+					blockCountLock: blockCountLock,
+					recipients: recipients,
+					keys: keys,
+					tokenAttachment: address(0)
+				})
 			);
 	}
 
@@ -346,40 +364,41 @@ contract YlideMailerV9 is
 		}
 		return
 			_addMailRecipients(
-				sender,
-				feedId,
-				uniqueId,
-				firstBlockNumber,
-				partsCount,
-				blockCountLock,
-				recipients,
-				keys
+				AddMailRecipientsArgs({
+					sender: sender,
+					feedId: feedId,
+					uniqueId: uniqueId,
+					firstBlockNumber: firstBlockNumber,
+					partsCount: partsCount,
+					blockCountLock: blockCountLock,
+					recipients: recipients,
+					keys: keys,
+					tokenAttachment: msg.sender
+				})
 			);
 	}
 
-	function _addMailRecipients(
-		address sender,
-		uint256 feedId,
-		uint256 uniqueId,
-		uint256 firstBlockNumber,
-		uint16 partsCount,
-		uint16 blockCountLock,
-		uint256[] calldata recipients,
-		bytes[] calldata keys
-	) internal returns (uint256) {
+	function _addMailRecipients(AddMailRecipientsArgs memory args) internal returns (uint256) {
 		uint256 contentId = buildContentId(
-			sender,
-			uniqueId,
-			firstBlockNumber,
-			partsCount,
-			blockCountLock
+			args.sender,
+			args.uniqueId,
+			args.firstBlockNumber,
+			args.partsCount,
+			args.blockCountLock
 		);
-		for (uint i = 0; i < recipients.length; i++) {
-			emitMailPush(feedId, recipients[i], sender, contentId, keys[i]);
+		for (uint i = 0; i < args.recipients.length; i++) {
+			emitMailPush(
+				args.feedId,
+				args.recipients[i],
+				args.sender,
+				contentId,
+				args.keys[i],
+				args.tokenAttachment
+			);
 		}
 
-		payOut(0, recipients.length, 0);
-		payOutMailingFeed(feedId, recipients.length);
+		payOut(0, args.recipients.length, 0);
+		payOutMailingFeed(args.feedId, args.recipients.length);
 
 		return contentId;
 	}
