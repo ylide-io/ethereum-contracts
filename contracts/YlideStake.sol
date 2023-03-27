@@ -74,7 +74,10 @@ contract YlideStake is
 				transferInfo.amountOrTokenId
 			);
 		}
-		// TODO: ensure it will be not overwritten
+		// ensure it will be not overwritten
+		if (contentIdToUserToTokenInfo[contentId][transferInfo.recipient].token != address(0)) {
+			revert("Token already attached");
+		}
 		contentIdToUserToTokenInfo[contentId][transferInfo.recipient] = TokenInfo({
 			amountOrTokenId: transferInfo.amountOrTokenId,
 			token: transferInfo.token,
