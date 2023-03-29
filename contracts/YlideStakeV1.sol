@@ -161,6 +161,7 @@ contract YlideStakeV1 is IYlidePayStake, OwnableUpgradeable, PausableUpgradeable
 				}
 				continue;
 			}
+			tokenInfo.claimed = true;
 			if (tokenInfo.tokenType == TokenType.ERC20) {
 				IERC20MetadataUpgradeable(tokenInfo.token).safeTransfer(
 					msg.sender,
@@ -173,7 +174,6 @@ contract YlideStakeV1 is IYlidePayStake, OwnableUpgradeable, PausableUpgradeable
 					tokenInfo.amountOrTokenId
 				);
 			}
-			tokenInfo.claimed = true;
 			emit TokenClaim(
 				contentIds[i],
 				tokenInfo.amountOrTokenId,
