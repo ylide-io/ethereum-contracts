@@ -94,7 +94,7 @@ contract YlideMailerV9 is
 		uint256 previousFeedJoinEventsIndex
 	);
 
-	constructor(string memory name) EIP712(name, "9") {
+	constructor() EIP712("YlideMailerV9", "9") {
 		mailingFeeds[0].owner = msg.sender; // regular mail
 		mailingFeeds[0].beneficiary = payable(msg.sender);
 
