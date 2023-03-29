@@ -19,7 +19,7 @@ contract YlideStakeV1 is IYlidePayStake, OwnableUpgradeable, PausableUpgradeable
 	IYlideMailer public ylideMailer;
 
 	// contentId => recipient => TokenInfo
-	mapping(uint256 => mapping(address => TokenInfo)) contentIdToUserToTokenInfo;
+	mapping(uint256 => mapping(address => TokenInfo)) public contentIdToUserToTokenInfo;
 
 	struct TokenInfo {
 		uint256 amountOrTokenId;
