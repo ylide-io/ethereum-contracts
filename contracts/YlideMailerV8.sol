@@ -247,18 +247,6 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         emit MailPush(rec, feedId, sender, contentId, currentFeed, key);
     }
 
-    function sendSmallMail(uint256 feedId, uint256 uniqueId, uint256 recipient, bytes calldata key, bytes calldata content) public payable notTerminated returns (uint256) {
-        uint256 contentId = buildContentId(msg.sender, uniqueId, block.number, 1, 0);
-
-        emit MessageContent(contentId, msg.sender, 1, 0, content);
-        emitMailPush(feedId, recipient, msg.sender, contentId, key);
-
-        payOut(1, 1, 0);
-        payOutMailingFeed(feedId, 1);
-
-        return contentId;
-    }
-
     function sendBulkMail(uint256 feedId, uint256 uniqueId, uint256[] calldata recipients, bytes[] calldata keys, bytes calldata content) public payable notTerminated returns (uint256) {
         uint256 contentId = buildContentId(msg.sender, uniqueId, block.number, 1, 0);
 
