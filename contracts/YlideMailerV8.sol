@@ -50,13 +50,18 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
     event MailPush(
         uint256 indexed recipient,
         uint256 indexed feedId,
-        // uint256 indexed threadId,
         address sender,
         uint256 contentId,
         uint256 previousFeedEventsIndex,
-        // uint256 previousThreadEventsIndex,
         bytes key
     );
+
+    event ContentRecipients(
+        uint256 indexed contentId,
+        address indexed sender,
+        uint256[] recipients
+    );
+
     event BroadcastPush(
         address indexed sender,
         uint256 indexed feedId,
@@ -136,6 +141,16 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         broadcastFeeds[2].owner = msg.sender;
         broadcastFeeds[2].beneficiary = payable(msg.sender);
         broadcastFeeds[2].isPublic = true;
+    }
+
+    modifier blockLock(uint256 firstBlockNumber, uint256 blockCountLock) {
+        if (block.number < firstBlockNumber) {
+            revert('Number less than firstBlockNumber');
+        }
+        if (block.number - firstBlockNumber >= blockCountLock) {
+            revert('Number more than firstBlockNumber + blockCountLock');
+        }
+        _;
     }
 
     function setMailingFeedFees(uint256 feedId, uint256 _recipientFee) public {
@@ -252,6 +267,7 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         for (uint i = 0; i < recipients.length; i++) {
             emitMailPush(feedId, recipients[i], msg.sender, contentId, keys[i]);
         }
+        emit ContentRecipients(contentId, msg.sender, recipients);
 
         payOut(1, recipients.length, 0);
         payOutMailingFeed(feedId, recipients.length);
@@ -259,11 +275,20 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
         return contentId;
     }
 
-    function addMailRecipients(uint256 feedId, uint256 uniqueId, uint256 firstBlockNumber, uint16 partsCount, uint16 blockCountLock, uint256[] calldata recipients, bytes[] calldata keys) public payable notTerminated returns (uint256) {
+    function addMailRecipients(
+        uint256 feedId,
+        uint256 uniqueId,
+        uint256 firstBlockNumber,
+        uint16 partsCount,
+        uint16 blockCountLock,
+        uint256[] calldata recipients,
+        bytes[] calldata keys
+    ) public payable notTerminated blockLock(firstBlockNumber, blockCountLock) returns (uint256) {
         uint256 contentId = buildContentId(msg.sender, uniqueId, firstBlockNumber, partsCount, blockCountLock);
         for (uint i = 0; i < recipients.length; i++) {
             emitMailPush(feedId, recipients[i], msg.sender, contentId, keys[i]);
         }
+        emit ContentRecipients(contentId, msg.sender, recipients);
 
         payOut(0, recipients.length, 0);
         payOutMailingFeed(feedId, recipients.length);
@@ -327,14 +352,14 @@ contract YlideMailerV8 is Owned, Terminatable, FiduciaryDuty, BlockNumberRingBuf
     /* ---------------------------------------------- */
 
     // For sending content part - for broadcast or not
-    function sendMessageContentPart(uint256 uniqueId, uint256 firstBlockNumber, uint256 blockCountLock, uint16 parts, uint16 partIdx, bytes calldata content) public payable notTerminated returns (uint256) {
-        if (block.number < firstBlockNumber) {
-            revert('Number less than firstBlockNumber');
-        }
-        if (block.number - firstBlockNumber >= blockCountLock) {
-            revert('Number more than firstBlockNumber + blockCountLock');
-        }
-
+    function sendMessageContentPart(
+        uint256 uniqueId,
+        uint256 firstBlockNumber,
+        uint256 blockCountLock,
+        uint16 parts,
+        uint16 partIdx,
+        bytes calldata content
+    ) public payable notTerminated blockLock(firstBlockNumber, blockCountLock) returns (uint256) {
         uint256 contentId = buildContentId(msg.sender, uniqueId, firstBlockNumber, parts, blockCountLock);
         emit MessageContent(contentId, msg.sender, parts, partIdx, content);
 
