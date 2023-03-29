@@ -25,12 +25,27 @@ describe('Token streaming', () => {
 	let user1: SignerWithAddress;
 	let user2: SignerWithAddress;
 
+	let feedId: string;
+
 	let sendBulkMailArgs: Parameters<
 		YlideMailerV9['functions']['sendBulkMail(uint256,uint256,uint256[],bytes[],bytes)']
 	>;
-	let addMailRecipientsArgs: Parameters<
-		YlideMailerV9['functions']['addMailRecipients(uint256,uint256,uint256,uint16,uint16,uint256[],bytes[])']
-	>;
+
+	const uniqueId = 123;
+	const recipients = [1, 2];
+	const keys = [new Uint8Array([1, 2, 3, 4, 5, 6]), new Uint8Array([6, 5, 4, 3, 2, 1])];
+	const content = new Uint8Array([8, 7, 8, 7, 8, 7]);
+
+	const prepareAddMailRecipientsArgs = async (
+		feedId: string,
+	): Promise<
+		Parameters<
+			YlideMailerV9['functions']['addMailRecipients(uint256,uint256,uint256,uint16,uint16,uint256[],bytes[])']
+		>
+	> => {
+		const blocknumber = await ethers.provider.getBlockNumber();
+		return [feedId, uniqueId, blocknumber, 2, 10, recipients, keys];
+	};
 
 	before(async function () {
 		if ('forking' in network.config) {
@@ -50,13 +65,11 @@ describe('Token streaming', () => {
 		const uniqueId = 123;
 		const tx = await ylideMailer.createMailingFeed('768768768768121341');
 		const receipt = await tx.wait();
-		const feedId = String(receipt.events?.[0].args?.[0] || 0);
+		feedId = String(receipt.events?.[0].args?.[0] || 0);
 		const recipients = [1, 2];
 		const keys = [new Uint8Array([1, 2, 3, 4, 5, 6]), new Uint8Array([6, 5, 4, 3, 2, 1])];
 		const content = new Uint8Array([8, 7, 8, 7, 8, 7]);
 		sendBulkMailArgs = [feedId, uniqueId, recipients, keys, content];
-		const blocknumber = await ethers.provider.getBlockNumber();
-		addMailRecipientsArgs = [feedId, uniqueId, blocknumber, 2, 10, recipients, keys];
 		await ylideMailer.connect(owner).setIsYlideTokenAttachment([ylideStreamSablier.address], [true]);
 	});
 
@@ -80,7 +93,7 @@ describe('Token streaming', () => {
 		const deposit = oneWeek * 100;
 
 		await usdc.connect(owner).approve(ylideStreamSablier.address, deposit);
-		const tx = await ylideStreamSablier.connect(owner).sendBulkMailWithToken(
+		await ylideStreamSablier.connect(owner).sendBulkMailWithToken(
 			...prepareSendBulkMailWithTokenArguments(sendBulkMailArgs, [
 				{
 					recipient: user1.address,
@@ -91,56 +104,59 @@ describe('Token streaming', () => {
 				},
 			]),
 		);
-		const receipt = await tx.wait();
-		const streamId = receipt.events?.find(e => e.event === 'TokenAttachment')?.args?.[1];
+		const {
+			args: { contentId },
+		} = await ylideMailer
+			.queryFilter(ylideMailer.filters.MailPush(null, sendBulkMailArgs[0]))
+			.then(r => r[r.length - 1]);
+		const stream = await ylideStreamSablier.contentIdToStreamInfo(contentId);
 
-		const stream = await ylideStreamSablier.getStream(streamId);
 		expect(stream.recipient).equal(user1.address);
 		expect(stream.sender).equal(owner.address);
 		expect(stream.deposit).equal(deposit);
 		expect(stream.tokenAddress).equal(USDC_ADDRESS);
 		expect(stream.startTime).equal(now);
 		expect(stream.stopTime).equal(oneWeekFromNow);
-		expect(stream.remainingBalance).equal(deposit);
-		expect(stream.ratePerSecond).equal(100);
+		expect(stream.deposit).equal(deposit);
 
-		const balanceUser1BeforeStart = await ylideStreamSablier.balanceOf(streamId, user1.address);
-		const balanceOwnerBeforeStart = await ylideStreamSablier.balanceOf(streamId, owner.address);
-		expect(balanceUser1BeforeStart).equal(0);
-		expect(balanceOwnerBeforeStart).equal(deposit);
+		expect(
+			await ylideStreamSablier
+				.balance(contentId)
+				.then(r => [r.balanceSender.toNumber(), r.balanceRecipient.toNumber()]),
+		).deep.equal([deposit, 0]);
 
 		await mine(100, { interval: 15 });
 
-		const balanceUser1After1 = await ylideStreamSablier.balanceOf(streamId, user1.address);
-		const balanceOwnerAfter1 = await ylideStreamSablier.balanceOf(streamId, owner.address);
+		const [balanceOwnerAfter1, balanceUser1After1] = await ylideStreamSablier.balance(contentId);
 		expect(balanceUser1After1).gt(0);
 		expect(balanceOwnerAfter1.add(balanceUser1After1)).equal(deposit);
 
 		await expect(
-			ylideStreamSablier.connect(user2).withdrawFromStream(streamId, balanceUser1After1),
+			ylideStreamSablier.connect(user2).withdrawFromStream(contentId, balanceUser1After1),
 		).to.be.revertedWith('caller is not the sender or the recipient of the stream');
 
 		// recipient can withdraw from stream
-		await ylideStreamSablier.connect(user1).withdrawFromStream(streamId, balanceUser1After1.sub(2));
-		expect(await ylideStreamSablier.balanceOf(streamId, user1.address)).lt(balanceUser1After1);
+		await ylideStreamSablier.connect(user1).withdrawFromStream(contentId, balanceUser1After1.sub(2));
+		expect(await ylideStreamSablier.balance(contentId).then(r => r[1])).lt(balanceUser1After1);
 		// sender can withdraw from stream as well
 		await ylideStreamSablier
-			.balanceOf(streamId, user1.address)
-			.then(r => ylideStreamSablier.connect(owner).withdrawFromStream(streamId, r));
+			.balance(contentId)
+			.then(r => ylideStreamSablier.connect(owner).withdrawFromStream(contentId, r[1]));
 		// it will be 100 because 1 second passes after previous transaction
-		expect(await ylideStreamSablier.balanceOf(streamId, user1.address)).equal(100);
+		expect(await ylideStreamSablier.balance(contentId).then(r => r[1])).equal(100);
 
 		// wait long to complete the stream
 		await mine(100000, { interval: 150 });
 
-		expect(await ylideStreamSablier.balanceOf(streamId, owner.address)).equal(0);
-		const balanceUser1Remaining = await ylideStreamSablier.balanceOf(streamId, user1.address);
-		await ylideStreamSablier.connect(user1).withdrawFromStream(streamId, balanceUser1Remaining);
+		expect(await ylideStreamSablier.balance(contentId).then(r => r[0])).equal(0);
+		const balanceUser1Remaining = await ylideStreamSablier.balance(contentId).then(r => r[1]);
+		await ylideStreamSablier.connect(user1).withdrawFromStream(contentId, balanceUser1Remaining);
 
 		// there is small error in Sablier therefore user can get slightly less
 		expect(await usdc.balanceOf(user1.address)).gt(BigNumber.from(deposit).sub(toWei6(1)));
 
-		await expect(ylideStreamSablier.balanceOf(streamId, owner.address)).to.be.revertedWith('stream does not exist');
+		await expect(ylideStreamSablier.balance(contentId)).to.be.revertedWith('stream does not exist');
+		expect(await usdc.balanceOf(ylideStreamSablier.address)).equal(0);
 	});
 
 	it('Sender can cancel stream before it starts', async () => {
@@ -151,8 +167,8 @@ describe('Token streaming', () => {
 
 		await usdc.connect(owner).approve(ylideStreamSablier.address, deposit);
 		const ownerUsdcBalanceInitial = await usdc.balanceOf(owner.address);
-		const tx = await ylideStreamSablier.connect(owner).addMailRecipientsWithToken(
-			...prepareAddMailRecipientsWithTokenArguments(addMailRecipientsArgs, [
+		await ylideStreamSablier.connect(owner).addMailRecipientsWithToken(
+			...prepareAddMailRecipientsWithTokenArguments(await prepareAddMailRecipientsArgs(feedId), [
 				{
 					recipient: user1.address,
 					deposit,
@@ -162,14 +178,17 @@ describe('Token streaming', () => {
 				},
 			]),
 		);
-		const receipt = await tx.wait();
-		const streamId = receipt.events?.find(e => e.event === 'TokenAttachment')?.args?.[1];
+		const {
+			args: { contentId },
+		} = await ylideMailer
+			.queryFilter(ylideMailer.filters.MailPush(null, sendBulkMailArgs[0]))
+			.then(r => r[r.length - 1]);
 
 		const ownerUsdcBalanceAfter = await usdc.balanceOf(owner.address);
 		expect(deposit).gt(0);
 		expect(ownerUsdcBalanceAfter.add(deposit)).equal(ownerUsdcBalanceInitial);
 
-		await ylideStreamSablier.connect(owner).cancelStream(streamId);
+		await ylideStreamSablier.connect(owner).cancelStream(contentId);
 		expect(await usdc.balanceOf(owner.address)).equal(ownerUsdcBalanceInitial);
 	});
 
@@ -182,8 +201,8 @@ describe('Token streaming', () => {
 		const user1UsdcBalance = await usdc.balanceOf(user1.address);
 
 		await usdc.connect(owner).approve(ylideStreamSablier.address, deposit);
-		const tx = await ylideStreamSablier.connect(owner).addMailRecipientsWithToken(
-			...prepareAddMailRecipientsWithTokenArguments(addMailRecipientsArgs, [
+		await ylideStreamSablier.connect(owner).addMailRecipientsWithToken(
+			...prepareAddMailRecipientsWithTokenArguments(await prepareAddMailRecipientsArgs(feedId), [
 				{
 					recipient: user1.address,
 					deposit,
@@ -193,17 +212,19 @@ describe('Token streaming', () => {
 				},
 			]),
 		);
-		const receipt = await tx.wait();
-		const streamId = receipt.events?.find(e => e.event === 'TokenAttachment')?.args?.[1];
+		const {
+			args: { contentId },
+		} = await ylideMailer
+			.queryFilter(ylideMailer.filters.MailPush(null, sendBulkMailArgs[0]))
+			.then(r => r[r.length - 1]);
 
 		const ownerUsdcBalanceAfter = await usdc.balanceOf(owner.address);
 
 		await mine(100, { interval: 15 });
 
-		const user1BalanceStream = await ylideStreamSablier.balanceOf(streamId, user1.address);
-		const ownerBalanceStream = await ylideStreamSablier.balanceOf(streamId, owner.address);
+		const [ownerBalanceStream, user1BalanceStream] = await ylideStreamSablier.balance(contentId);
 
-		await ylideStreamSablier.connect(owner).cancelStream(streamId);
+		await ylideStreamSablier.connect(owner).cancelStream(contentId);
 
 		// sender and recipient both receive money. 100 difference because of 1 second passed
 		expect(await usdc.balanceOf(user1.address)).equal(user1UsdcBalance.add(user1BalanceStream).add(100));
@@ -220,7 +241,7 @@ describe('Token streaming', () => {
 
 		await usdc.connect(owner).approve(ylideStreamSablier.address, deposit);
 		const ownerUsdcBalanceInitial = await usdc.balanceOf(owner.address);
-		const tx = await ylideStreamSablier.connect(owner).sendBulkMailWithToken(
+		await ylideStreamSablier.connect(owner).sendBulkMailWithToken(
 			...prepareSendBulkMailWithTokenArguments(sendBulkMailArgs, [
 				{
 					recipient: user1.address,
@@ -231,14 +252,17 @@ describe('Token streaming', () => {
 				},
 			]),
 		);
-		const receipt = await tx.wait();
-		const streamId = receipt.events?.find(e => e.event === 'TokenAttachment')?.args?.[1];
+		const {
+			args: { contentId },
+		} = await ylideMailer
+			.queryFilter(ylideMailer.filters.MailPush(null, sendBulkMailArgs[0]))
+			.then(r => r[r.length - 1]);
 
 		const ownerUsdcBalanceAfter = await usdc.balanceOf(owner.address);
 		expect(deposit).gt(0);
 		expect(ownerUsdcBalanceAfter.add(deposit)).equal(ownerUsdcBalanceInitial);
 
-		await ylideStreamSablier.connect(user1).cancelStream(streamId);
+		await ylideStreamSablier.connect(user1).cancelStream(contentId);
 		expect(await usdc.balanceOf(owner.address)).equal(ownerUsdcBalanceInitial);
 		expect(await usdc.balanceOf(user1.address)).equal(user1UsdcBalance);
 	});
@@ -252,7 +276,7 @@ describe('Token streaming', () => {
 		const user1UsdcBalance = await usdc.balanceOf(user1.address);
 
 		await usdc.connect(owner).approve(ylideStreamSablier.address, deposit);
-		const tx = await ylideStreamSablier.connect(owner).sendBulkMailWithToken(
+		await ylideStreamSablier.connect(owner).sendBulkMailWithToken(
 			...prepareSendBulkMailWithTokenArguments(sendBulkMailArgs, [
 				{
 					recipient: user1.address,
@@ -263,17 +287,19 @@ describe('Token streaming', () => {
 				},
 			]),
 		);
-		const receipt = await tx.wait();
-		const streamId = receipt.events?.find(e => e.event === 'TokenAttachment')?.args?.[1];
+		const {
+			args: { contentId },
+		} = await ylideMailer
+			.queryFilter(ylideMailer.filters.MailPush(null, sendBulkMailArgs[0]))
+			.then(r => r[r.length - 1]);
 
 		const ownerUsdcBalanceAfter = await usdc.balanceOf(owner.address);
 
 		await mine(100, { interval: 15 });
 
-		const user1BalanceStream = await ylideStreamSablier.balanceOf(streamId, user1.address);
-		const ownerBalanceStream = await ylideStreamSablier.balanceOf(streamId, owner.address);
+		const [ownerBalanceStream, user1BalanceStream] = await ylideStreamSablier.balance(contentId);
 
-		await ylideStreamSablier.connect(user1).cancelStream(streamId);
+		await ylideStreamSablier.connect(user1).cancelStream(contentId);
 
 		// sender and recipient both receive money. 100 difference because of 1 second passed
 		expect(await usdc.balanceOf(user1.address)).equal(user1UsdcBalance.add(user1BalanceStream).add(100));
@@ -288,7 +314,7 @@ describe('Token streaming', () => {
 
 		await usdc.connect(owner).approve(ylideStreamSablier.address, deposit);
 		const ownerUsdcBalanceInitial = await usdc.balanceOf(owner.address);
-		const tx = await ylideStreamSablier.connect(owner).sendBulkMailWithToken(
+		await ylideStreamSablier.connect(owner).sendBulkMailWithToken(
 			...prepareSendBulkMailWithTokenArguments(sendBulkMailArgs, [
 				{
 					recipient: user1.address,
@@ -299,15 +325,18 @@ describe('Token streaming', () => {
 				},
 			]),
 		);
-		const receipt = await tx.wait();
-		const streamId = receipt.events?.find(e => e.event === 'TokenAttachment')?.args?.[1];
+		const {
+			args: { contentId },
+		} = await ylideMailer
+			.queryFilter(ylideMailer.filters.MailPush(null, sendBulkMailArgs[0]))
+			.then(r => r[r.length - 1]);
 
 		const ownerUsdcBalanceAfter = await usdc.balanceOf(owner.address);
 		expect(deposit).gt(0);
 		expect(ownerUsdcBalanceAfter.add(deposit)).equal(ownerUsdcBalanceInitial);
 
 		const args = [...sendBulkMailArgs] as any;
-		args[5] = streamId;
+		args[5] = contentId;
 		await ylideStreamSablier
 			.connect(owner)
 			.cancelStreamAndSendBulkMail(
@@ -324,7 +353,7 @@ describe('Token streaming', () => {
 
 		await usdc.connect(owner).approve(ylideStreamSablier.address, deposit);
 		const ownerUsdcBalanceInitial = await usdc.balanceOf(owner.address);
-		const tx = await ylideStreamSablier.connect(owner).sendBulkMailWithToken(
+		await ylideStreamSablier.connect(owner).sendBulkMailWithToken(
 			...prepareSendBulkMailWithTokenArguments(sendBulkMailArgs, [
 				{
 					recipient: user1.address,
@@ -335,15 +364,18 @@ describe('Token streaming', () => {
 				},
 			]),
 		);
-		const receipt = await tx.wait();
-		const streamId = receipt.events?.find(e => e.event === 'TokenAttachment')?.args?.[1];
+		const {
+			args: { contentId },
+		} = await ylideMailer
+			.queryFilter(ylideMailer.filters.MailPush(null, sendBulkMailArgs[0]))
+			.then(r => r[r.length - 1]);
 
 		const ownerUsdcBalanceAfter = await usdc.balanceOf(owner.address);
 		expect(deposit).gt(0);
 		expect(ownerUsdcBalanceAfter.add(deposit)).equal(ownerUsdcBalanceInitial);
 
-		const args = [...addMailRecipientsArgs] as any;
-		args[7] = streamId;
+		const args = [...(await prepareAddMailRecipientsArgs(feedId))] as any;
+		args[7] = contentId;
 		await ylideStreamSablier
 			.connect(owner)
 			.cancelStreamAndAddMailRecipients(

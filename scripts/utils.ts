@@ -39,7 +39,7 @@ export function prepareSendBulkMailWithTokenArguments(
 ): Parameters<YlidePayV1['functions']['sendBulkMailWithToken']>;
 export function prepareSendBulkMailWithTokenArguments(
 	args: Parameters<YlideMailerV9['functions']['sendBulkMail(uint256,uint256,uint256[],bytes[],bytes)']>,
-	infos: YlideStreamSablierV1.StreamInfoStruct[],
+	infos: YlideStreamSablierV1.StreamArgsStruct[],
 ): Parameters<YlideStreamSablierV1['functions']['sendBulkMailWithToken']>;
 export function prepareSendBulkMailWithTokenArguments(
 	args: Parameters<YlideMailerV9['functions']['sendBulkMail(uint256,uint256,uint256[],bytes[],bytes)']>,
@@ -60,7 +60,7 @@ export function prepareAddMailRecipientsWithTokenArguments(
 	args: Parameters<
 		YlideMailerV9['functions']['addMailRecipients(uint256,uint256,uint256,uint16,uint16,uint256[],bytes[])']
 	>,
-	infos: YlideStreamSablierV1.StreamInfoStruct[],
+	infos: YlideStreamSablierV1.StreamArgsStruct[],
 ): Parameters<YlideStreamSablierV1['functions']['addMailRecipientsWithToken']>;
 export function prepareAddMailRecipientsWithTokenArguments(
 	args: Parameters<

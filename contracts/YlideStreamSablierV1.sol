@@ -14,55 +14,67 @@ import {IYlideTokenAttachment} from "./interfaces/IYlideTokenAttachment.sol";
 contract YlideStreamSablierV1 is IYlideTokenAttachment, Owned, Pausable {
 	using SafeERC20 for IERC20;
 
-	struct StreamInfo {
-		address recipient;
-		uint256 deposit;
-		address tokenAddress;
+	// ===================
+	// ===== Structs =====
+	// ===================
+	struct StreamArgs {
 		uint256 startTime;
 		uint256 stopTime;
+		uint256 deposit;
+		address tokenAddress;
+		address recipient;
 	}
 
-	struct StreamCancelInfo {
-		address recipient;
+	struct StreamCancelArgs {
+		uint256 senderReceived;
+		uint256 recipientReceived;
 		bool success;
 	}
 
-	event TokenAttachment(
-		uint256 indexed contentId,
-		uint256 indexed streamId,
-		uint256 deposit,
-		uint256 startTime,
-		uint256 stopTime,
-		address indexed recipient,
-		address sender,
-		address tokenAddress
-	);
+	struct Withdrawal {
+		uint256 amount;
+		uint256 timestamp;
+		address initiator;
+	}
 
-	event StreamWithdraw(uint256 indexed streamId, address indexed recipient, uint256 amount);
+	struct Cancel {
+		uint256 senderReceived;
+		uint256 recipientReceived;
+		uint256 timestamp;
+		uint256 responseContentId;
+		address initiator;
+	}
 
-	event StreamCancelled(
-		uint256 indexed contentId,
-		uint256 indexed streamId,
-		address indexed recipient,
-		address sender,
-		address initiator
-	);
+	struct StreamInfo {
+		uint256 streamId;
+		uint256 deposit;
+		uint256 startTime;
+		uint256 stopTime;
+		address recipient;
+		address sender;
+		address tokenAddress;
+		Withdrawal[] withdrawals;
+		Cancel cancel;
+	}
 
-	uint256 public constant version = 1;
-
+	// ===================
+	// ===== Storage =====
+	// ===================
 	IYlideMailer public ylideMailer;
-
 	ISablier public sablier;
+	// contentId => StreamInfo
+	mapping(uint256 => StreamInfo) public contentIdToStreamInfo;
 
-	// streamId => sender
-	mapping(uint256 => address) streamIdToSender;
+	// =====================
+	// ===== Constants =====
+	// =====================
+	uint256 public constant version = 1;
 
 	constructor() Owned() Pausable() {}
 
-	function contractType() public pure returns (ContractType) {
-		return ContractType.StreamSablier;
-	}
-
+	// ===================
+	// ===== Setters =====
+	// ===================
 	function setYlideMailer(address _ylideMailer) external onlyOwner {
 		ylideMailer = IYlideMailer(_ylideMailer);
 	}
@@ -71,55 +83,42 @@ contract YlideStreamSablierV1 is IYlideTokenAttachment, Owned, Pausable {
 		sablier = _sablier;
 	}
 
-	function _stream(StreamInfo calldata streamInfo, uint256 contentId) internal {
-		IERC20(streamInfo.tokenAddress).safeTransferFrom(
-			msg.sender,
-			address(this),
-			streamInfo.deposit
-		);
-		IERC20(streamInfo.tokenAddress).safeApprove(address(sablier), streamInfo.deposit);
+	function pause() external onlyOwner {
+		_pause();
+	}
 
-		uint256 streamId = sablier.createStream(
-			streamInfo.recipient,
-			streamInfo.deposit,
-			streamInfo.tokenAddress,
-			streamInfo.startTime,
-			streamInfo.stopTime
-		);
+	function unpause() external onlyOwner {
+		_unpause();
+	}
 
-		streamIdToSender[streamId] = msg.sender;
-
-		emit TokenAttachment(
-			contentId,
-			streamId,
-			streamInfo.deposit,
-			streamInfo.startTime,
-			streamInfo.stopTime,
-			streamInfo.recipient,
-			msg.sender,
-			streamInfo.tokenAddress
+	// ===================
+	// ===== Getters =====
+	// ===================
+	function balance(
+		uint256 contentId
+	) public view returns (uint256 balanceSender, uint256 balanceRecipient) {
+		StreamInfo memory streamInfo = contentIdToStreamInfo[contentId];
+		return (
+			sablier.balanceOf(streamInfo.streamId, address(this)),
+			sablier.balanceOf(streamInfo.streamId, streamInfo.recipient)
 		);
 	}
 
-	function _handleTokenAttachment(StreamInfo[] calldata streamInfos, uint256 contentId) internal {
-		for (uint256 i; i < streamInfos.length; ) {
-			if (streamInfos[i].recipient != address(0)) {
-				_stream(streamInfos[i], contentId);
-			}
-			unchecked {
-				i++;
-			}
-		}
+	function contractType() public pure returns (ContractType) {
+		return ContractType.StreamSablier;
 	}
 
+	// ============================
+	// ===== External Methods =====
+	// ============================
 	function sendBulkMailWithToken(
 		uint256 feedId,
 		uint256 uniqueId,
 		uint256[] calldata recipients,
 		bytes[] calldata keys,
 		bytes calldata content,
-		StreamInfo[] calldata streamInfos
-	) public whenNotPaused returns (uint256) {
+		StreamArgs[] calldata streamArgs
+	) external whenNotPaused returns (uint256) {
 		uint256 contentId = ylideMailer.sendBulkMail(
 			msg.sender,
 			feedId,
@@ -128,7 +127,7 @@ contract YlideStreamSablierV1 is IYlideTokenAttachment, Owned, Pausable {
 			keys,
 			content
 		);
-		_handleTokenAttachment(streamInfos, contentId);
+		_handleTokenAttachment(streamArgs, contentId);
 		return contentId;
 	}
 
@@ -140,8 +139,8 @@ contract YlideStreamSablierV1 is IYlideTokenAttachment, Owned, Pausable {
 		uint16 blockCountLock,
 		uint256[] calldata recipients,
 		bytes[] calldata keys,
-		StreamInfo[] calldata streamInfos
-	) public whenNotPaused returns (uint256) {
+		StreamArgs[] calldata streamArgs
+	) external whenNotPaused returns (uint256) {
 		uint256 contentId = ylideMailer.addMailRecipients(
 			msg.sender,
 			feedId,
@@ -152,52 +151,39 @@ contract YlideStreamSablierV1 is IYlideTokenAttachment, Owned, Pausable {
 			recipients,
 			keys
 		);
-		_handleTokenAttachment(streamInfos, contentId);
+		_handleTokenAttachment(streamArgs, contentId);
 		return contentId;
 	}
 
-	/**
-	 * @notice Withdraws from the contract to the recipient's account.
-	 * @dev Throws if the id does not point to a valid stream.
-	 *  Throws if the caller is not the sender or the recipient of the stream.
-	 *  Throws if the amount exceeds the available balance.
-	 *  Throws if there is a token transfer failure.
-	 * @param streamId The id of the stream to withdraw tokens from.
-	 * @param amount The amount of tokens to withdraw.
-	 */
-	function withdrawFromStream(uint256 streamId, uint256 amount) external returns (bool) {
-		address sender = streamIdToSender[streamId];
-		(, address recipient, , , , , , ) = sablier.getStream(streamId);
-		if (msg.sender != sender && msg.sender != recipient) {
+	function withdrawFromStream(
+		uint256 contentId,
+		uint256 amount
+	) external whenNotPaused returns (bool) {
+		StreamInfo storage streamInfo = contentIdToStreamInfo[contentId];
+		if (msg.sender != streamInfo.sender && msg.sender != streamInfo.recipient) {
 			revert("caller is not the sender or the recipient of the stream");
 		}
-		bool success = sablier.withdrawFromStream(streamId, amount);
+		bool success = sablier.withdrawFromStream(streamInfo.streamId, amount);
 		if (success) {
-			emit StreamWithdraw(streamId, recipient, amount);
+			streamInfo.withdrawals.push(
+				Withdrawal({amount: amount, timestamp: block.timestamp, initiator: msg.sender})
+			);
 		}
 		return success;
 	}
 
-	/**
-	 * @notice Cancels the stream and transfers the tokens back on a pro rata basis.
-	 * @dev Throws if the id does not point to a valid stream.
-	 *  Throws if the caller is not the sender or the recipient of the stream.
-	 *  Throws if there is a token transfer failure.
-	 * @param streamId The id of the stream to cancel.
-	 * @return bool true=success, otherwise false.
-	 */
-	function cancelStream(uint256 streamId) external whenNotPaused returns (bool) {
-		StreamCancelInfo memory streamCancelInfo = _cancelStream(streamId);
-		if (streamCancelInfo.success) {
-			emit StreamCancelled(
-				0,
-				streamId,
-				streamCancelInfo.recipient,
-				streamIdToSender[streamId],
-				msg.sender
-			);
+	function cancelStream(uint256 contentId) external whenNotPaused returns (bool) {
+		StreamCancelArgs memory streamCancelArgs = _cancelStream(contentId);
+		if (streamCancelArgs.success) {
+			contentIdToStreamInfo[contentId].cancel = Cancel({
+				initiator: msg.sender,
+				timestamp: block.timestamp,
+				senderReceived: streamCancelArgs.senderReceived,
+				recipientReceived: streamCancelArgs.recipientReceived,
+				responseContentId: 0
+			});
 		}
-		return streamCancelInfo.success;
+		return streamCancelArgs.success;
 	}
 
 	function cancelStreamAndSendBulkMail(
@@ -206,13 +192,13 @@ contract YlideStreamSablierV1 is IYlideTokenAttachment, Owned, Pausable {
 		uint256[] calldata recipients,
 		bytes[] calldata keys,
 		bytes calldata content,
-		uint256 streamId
+		uint256 parentContentId
 	) external whenNotPaused returns (uint256) {
-		StreamCancelInfo memory streamCancelInfo = _cancelStream(streamId);
-		if (!streamCancelInfo.success) {
+		StreamCancelArgs memory streamCancelArgs = _cancelStream(parentContentId);
+		if (!streamCancelArgs.success) {
 			revert("Stream cannot be cancelled");
 		}
-		uint256 contentId = ylideMailer.sendBulkMail(
+		uint256 responseContentId = ylideMailer.sendBulkMail(
 			msg.sender,
 			feedId,
 			uniqueId,
@@ -220,14 +206,14 @@ contract YlideStreamSablierV1 is IYlideTokenAttachment, Owned, Pausable {
 			keys,
 			content
 		);
-		emit StreamCancelled(
-			contentId,
-			streamId,
-			streamCancelInfo.recipient,
-			streamIdToSender[streamId],
-			msg.sender
-		);
-		return contentId;
+		contentIdToStreamInfo[parentContentId].cancel = Cancel({
+			initiator: msg.sender,
+			timestamp: block.timestamp,
+			senderReceived: streamCancelArgs.senderReceived,
+			recipientReceived: streamCancelArgs.recipientReceived,
+			responseContentId: responseContentId
+		});
+		return responseContentId;
 	}
 
 	function cancelStreamAndAddMailRecipients(
@@ -238,13 +224,13 @@ contract YlideStreamSablierV1 is IYlideTokenAttachment, Owned, Pausable {
 		uint16 blockCountLock,
 		uint256[] calldata recipients,
 		bytes[] calldata keys,
-		uint256 streamId
+		uint256 parentContentId
 	) external whenNotPaused returns (uint256) {
-		StreamCancelInfo memory streamCancelInfo = _cancelStream(streamId);
-		if (!streamCancelInfo.success) {
+		StreamCancelArgs memory streamCancelArgs = _cancelStream(parentContentId);
+		if (!streamCancelArgs.success) {
 			revert("Stream cannot be cancelled");
 		}
-		uint256 contentId = ylideMailer.addMailRecipients(
+		uint256 responseContentId = ylideMailer.addMailRecipients(
 			msg.sender,
 			feedId,
 			uniqueId,
@@ -254,74 +240,80 @@ contract YlideStreamSablierV1 is IYlideTokenAttachment, Owned, Pausable {
 			recipients,
 			keys
 		);
-		emit StreamCancelled(
-			contentId,
-			streamId,
-			streamCancelInfo.recipient,
-			streamIdToSender[streamId],
-			msg.sender
-		);
-		return contentId;
+		contentIdToStreamInfo[parentContentId].cancel = Cancel({
+			initiator: msg.sender,
+			timestamp: block.timestamp,
+			senderReceived: streamCancelArgs.senderReceived,
+			recipientReceived: streamCancelArgs.recipientReceived,
+			responseContentId: responseContentId
+		});
+		return responseContentId;
 	}
 
+	// ===========================
+	// ===== Private methods =====
+	// ===========================
 	function _cancelStream(
-		uint256 streamId
-	) internal returns (StreamCancelInfo memory streamCancelInfo) {
-		address sender = streamIdToSender[streamId];
-		(, address recipient, , address tokenAddress, , , , ) = sablier.getStream(streamId);
-		streamCancelInfo.recipient = recipient;
-		if (msg.sender != sender && msg.sender != recipient) {
+		uint256 contentId
+	) internal returns (StreamCancelArgs memory streamCancelArgs) {
+		StreamInfo storage streamInfo = contentIdToStreamInfo[contentId];
+		if (msg.sender != streamInfo.sender && msg.sender != streamInfo.recipient) {
 			revert("caller is not the sender or the recipient of the stream");
 		}
-		uint256 balance = sablier.balanceOf(streamId, address(this));
-		streamCancelInfo.success = sablier.cancelStream(streamId);
-		if (streamCancelInfo.success && balance > 0) {
-			IERC20(tokenAddress).safeTransfer(sender, balance);
+		streamCancelArgs.senderReceived = sablier.balanceOf(streamInfo.streamId, address(this));
+		streamCancelArgs.recipientReceived = sablier.balanceOf(
+			streamInfo.streamId,
+			streamInfo.recipient
+		);
+		streamCancelArgs.success = sablier.cancelStream(streamInfo.streamId);
+		if (streamCancelArgs.success && streamCancelArgs.senderReceived > 0) {
+			IERC20(streamInfo.tokenAddress).safeTransfer(
+				streamInfo.sender,
+				streamCancelArgs.senderReceived
+			);
 		}
 	}
 
-	function balanceOf(uint256 streamId, address who) public view returns (uint256 balance) {
-		address sender = streamIdToSender[streamId];
-		if (who == sender) {
-			who = address(this);
+	function _handleTokenAttachment(StreamArgs[] calldata streamArgs, uint256 contentId) internal {
+		if (contentIdToStreamInfo[contentId].streamId != 0) {
+			revert("YlideStreamSablierV1: contentId already has a stream");
 		}
-		return sablier.balanceOf(streamId, who);
+		for (uint256 i; i < streamArgs.length; ) {
+			if (streamArgs[i].recipient != address(0)) {
+				_createStream(streamArgs[i], contentId);
+			}
+			unchecked {
+				i++;
+			}
+		}
 	}
 
-	function getStream(
-		uint256 streamId
-	)
-		external
-		view
-		returns (
-			address sender,
-			address recipient,
-			uint256 deposit,
-			address tokenAddress,
-			uint256 startTime,
-			uint256 stopTime,
-			uint256 remainingBalance,
-			uint256 ratePerSecond
-		)
-	{
-		(
-			,
-			recipient,
-			deposit,
-			tokenAddress,
-			startTime,
-			stopTime,
-			remainingBalance,
-			ratePerSecond
-		) = sablier.getStream(streamId);
-		sender = streamIdToSender[streamId];
-	}
+	function _createStream(StreamArgs calldata streamArgs, uint256 contentId) internal {
+		if (address(sablier) == address(0)) {
+			revert("YlideStreamSablierV1: sablier not set");
+		}
+		IERC20(streamArgs.tokenAddress).safeTransferFrom(
+			msg.sender,
+			address(this),
+			streamArgs.deposit
+		);
+		IERC20(streamArgs.tokenAddress).safeApprove(address(sablier), streamArgs.deposit);
 
-	function pause() external onlyOwner {
-		_pause();
-	}
+		uint256 streamId = sablier.createStream(
+			streamArgs.recipient,
+			streamArgs.deposit,
+			streamArgs.tokenAddress,
+			streamArgs.startTime,
+			streamArgs.stopTime
+		);
 
-	function unpause() external onlyOwner {
-		_unpause();
+		StreamInfo storage streamInfo = contentIdToStreamInfo[contentId];
+		streamInfo.deposit = streamArgs.deposit;
+		streamInfo.startTime = streamArgs.startTime;
+		streamInfo.stopTime = streamArgs.stopTime;
+		streamInfo.recipient = streamArgs.recipient;
+		streamInfo.sender = msg.sender;
+		streamInfo.tokenAddress = streamArgs.tokenAddress;
+		streamInfo.streamId = streamId;
 	}
 }
