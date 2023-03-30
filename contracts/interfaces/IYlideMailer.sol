@@ -24,6 +24,7 @@ interface IYlideMailer {
 		bytes signature;
 		uint256 nonce;
 		uint256 deadline;
+		address sender;
 	}
 
 	function sendBulkMail(

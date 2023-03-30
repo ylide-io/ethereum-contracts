@@ -5,8 +5,8 @@ import "./helpers/Owned.sol";
 import "./helpers/Terminatable.sol";
 import "./helpers/FiduciaryDuty.sol";
 import "./helpers/BlockNumberRingBufferIndex.sol";
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {EIP712} from "@openzeppelin/contracts/utils/cryptography/draft-EIP712.sol";
+
+import "@openzeppelin/contracts/utils/cryptography/draft-EIP712.sol";
 
 import {IYlideMailer} from "./interfaces/IYlideMailer.sol";
 
@@ -26,6 +26,8 @@ contract YlideMailerV9 is
 	mapping(uint256 => uint256) public recipientToMailingFeedJoinEventsIndex;
 
 	mapping(address => uint256) public nonces;
+
+	mapping(address => bool) public isYlideTokenAttachment;
 
 	struct BroadcastFeedV9 {
 		address owner;
@@ -94,6 +96,18 @@ contract YlideMailerV9 is
 		uint256 previousFeedJoinEventsIndex
 	);
 
+	error NumberLessThanFirstBlockNumber();
+	error NumberMoreThanFirstBlockNumberPlusBlockCountLock();
+	error NotFeedOwner();
+	error FeedExists();
+	error FeedDoesNotExist();
+	error InvalidSignature();
+	error SignatureExpired();
+	error InvalidNonce();
+	error FeedAlreadyExists();
+	error FeedNotAllowed();
+	error IsNotYlide();
+
 	constructor() EIP712("YlideMailerV9", "9") {
 		mailingFeeds[0].owner = msg.sender; // regular mail
 		mailingFeeds[0].beneficiary = payable(msg.sender);
@@ -143,27 +157,74 @@ contract YlideMailerV9 is
 		broadcastFeeds[2].isPublic = true;
 	}
 
-	modifier blockLock(uint256 firstBlockNumber, uint256 blockCountLock) {
+	function validateBlockLock(uint256 firstBlockNumber, uint256 blockCountLock) internal view {
 		if (block.number < firstBlockNumber) {
-			revert("Number less than firstBlockNumber");
+			revert NumberLessThanFirstBlockNumber();
 		}
 		if (block.number - firstBlockNumber >= blockCountLock) {
-			revert("Number more than firstBlockNumber + blockCountLock");
+			revert NumberMoreThanFirstBlockNumberPlusBlockCountLock();
 		}
-		_;
+	}
+
+	function validateFeedOwner(uint256 feedId) internal view {
+		if (msg.sender != mailingFeeds[feedId].owner) {
+			revert NotFeedOwner();
+		}
+	}
+
+	function validateBroadCastFeedOwner(uint256 feedId) internal view {
+		if (msg.sender != broadcastFeeds[feedId].owner) {
+			revert NotFeedOwner();
+		}
+	}
+
+	function validateAccessToBroadcastFeed(bool isPersonal, uint256 feedId) internal view {
+		if (
+			!isPersonal &&
+			!broadcastFeeds[feedId].isPublic &&
+			broadcastFeeds[feedId].writers[msg.sender] != true
+		) {
+			revert FeedNotAllowed();
+		}
+	}
+
+	function validateIsYlide() internal view {
+		if (!isYlideTokenAttachment[msg.sender]) {
+			revert IsNotYlide();
+		}
+	}
+
+	function concatBytesList(bytes[] memory list) internal pure returns (bytes memory result) {
+		for (uint256 i; i < list.length; ) {
+			result = bytes.concat(result, list[i]);
+			unchecked {
+				i++;
+			}
+		}
+	}
+
+	function setIsYlideTokenAttachment(
+		address[] calldata ylideContracts,
+		bool[] calldata values
+	) external onlyOwner {
+		if (ylideContracts.length != values.length) {
+			revert();
+		}
+		for (uint256 i; i < ylideContracts.length; ) {
+			isYlideTokenAttachment[ylideContracts[i]] = values[i];
+			unchecked {
+				i++;
+			}
+		}
 	}
 
 	function setMailingFeedFees(uint256 feedId, uint256 _recipientFee) public {
-		if (msg.sender != mailingFeeds[feedId].owner) {
-			revert();
-		}
+		validateFeedOwner(feedId);
 		mailingFeeds[feedId].recipientFee = _recipientFee;
 	}
 
 	function setBroadcastFeedFees(uint256 feedId, uint256 _broadcastFee) public {
-		if (msg.sender != broadcastFeeds[feedId].owner) {
-			revert();
-		}
+		validateBroadCastFeedOwner(feedId);
 		broadcastFeeds[feedId].broadcastFee = _broadcastFee;
 	}
 
@@ -250,7 +311,7 @@ contract YlideMailerV9 is
 		address tokenAttachment
 	) internal {
 		if (mailingFeeds[feedId].owner == address(0)) {
-			revert("Feed does not exist");
+			revert FeedDoesNotExist();
 		}
 		uint256 shrinkedBlock = block.number / 128;
 		if (mailingFeeds[feedId].recipientMessagesCount[rec] == 0) {
@@ -281,19 +342,20 @@ contract YlideMailerV9 is
 		SendBulkArgs calldata args,
 		SignatureArgs calldata signatureArgs
 	) external payable notTerminated returns (uint256) {
+		validateIsYlide();
 		bytes32 digest = _hashTypedDataV4(
 			keccak256(
 				abi.encode(
 					keccak256(
-						"SendBulkMail(uint256 feedId,uint256 uniqueId,uint256[] recipients,bytes[] keys,bytes content,uint256 nonce,uint256 deadline)"
+						"SendBulkMail(uint256 feedId,uint256 uniqueId,uint256 nonce,uint256 deadline,uint256[] recipients,bytes keys,bytes content)"
 					),
 					args.feedId,
 					args.uniqueId,
-					args.recipients,
-					args.keys,
-					args.content,
 					signatureArgs.nonce,
-					signatureArgs.deadline
+					signatureArgs.deadline,
+					keccak256(abi.encodePacked(args.recipients)),
+					keccak256(abi.encodePacked(concatBytesList(args.keys))),
+					keccak256(abi.encodePacked(args.content))
 				)
 			)
 		);
@@ -330,38 +392,32 @@ contract YlideMailerV9 is
 
 	function addMailRecipients(
 		AddMailRecipientsArgs calldata args
-	)
-		external
-		payable
-		notTerminated
-		blockLock(args.firstBlockNumber, args.blockCountLock)
-		returns (uint256)
-	{
+	) external payable notTerminated returns (uint256) {
+		validateBlockLock(args.firstBlockNumber, args.blockCountLock);
 		return _addMailRecipients(msg.sender, address(0), args);
 	}
 
 	function addMailRecipients(
 		AddMailRecipientsArgs calldata args,
 		SignatureArgs calldata signatureArgs
-	)
-		external
-		payable
-		notTerminated
-		blockLock(args.firstBlockNumber, args.blockCountLock)
-		returns (uint256)
-	{
+	) external payable notTerminated returns (uint256) {
+		validateIsYlide();
+		validateBlockLock(args.firstBlockNumber, args.blockCountLock);
 		bytes32 digest = _hashTypedDataV4(
 			keccak256(
 				abi.encode(
 					keccak256(
-						"AddMailRecipients(uint256 feedId,uint256 uniqueId,uint256[] recipients,bytes[] keys,uint256 nonce,uint256 deadline)"
+						"AddMailRecipients(uint256 feedId,uint256 uniqueId,uint256 firstBlockNumber,uint256 nonce,uint256 deadline,uint16 partsCount,uint16 blockCountLock,uint256[] recipients,bytes keys)"
 					),
 					args.feedId,
 					args.uniqueId,
-					args.recipients,
-					args.keys,
+					args.firstBlockNumber,
 					signatureArgs.nonce,
-					signatureArgs.deadline
+					signatureArgs.deadline,
+					args.partsCount,
+					args.blockCountLock,
+					keccak256(abi.encodePacked(args.recipients)),
+					keccak256(abi.encodePacked(concatBytesList(args.keys)))
 				)
 			)
 		);
@@ -405,9 +461,9 @@ contract YlideMailerV9 is
 	) internal returns (address) {
 		address signer = ECDSA.recover(digest, signatureArgs.signature);
 
-		if (signer == address(0)) revert("ECDSA: invalid signature");
-		if (block.timestamp >= signatureArgs.deadline) revert("Signature expired");
-		if (signatureArgs.nonce != nonces[signer]++) revert("Invalid nonce");
+		if (signer != signatureArgs.sender) revert InvalidSignature();
+		if (signatureArgs.nonce != nonces[signer]++) revert InvalidNonce();
+		if (block.timestamp >= signatureArgs.deadline) revert SignatureExpired();
 
 		return signer;
 	}
@@ -432,13 +488,7 @@ contract YlideMailerV9 is
 		uint256 uniqueId,
 		bytes calldata content
 	) public payable notTerminated returns (uint256) {
-		if (
-			!isPersonal &&
-			!broadcastFeeds[feedId].isPublic &&
-			broadcastFeeds[feedId].writers[msg.sender] != true
-		) {
-			revert("You are not allowed to write to this feed");
-		}
+		validateAccessToBroadcastFeed(isPersonal, feedId);
 
 		uint256 composedFeedId = isPersonal
 			? uint256(sha256(abi.encodePacked(msg.sender, uint256(1), feedId)))
@@ -465,13 +515,7 @@ contract YlideMailerV9 is
 		uint16 partsCount,
 		uint16 blockCountLock
 	) public payable notTerminated returns (uint256) {
-		if (
-			!isPersonal &&
-			!broadcastFeeds[feedId].isPublic &&
-			broadcastFeeds[feedId].writers[msg.sender] != true
-		) {
-			revert("You are not allowed to write to this feed");
-		}
+		validateAccessToBroadcastFeed(isPersonal, feedId);
 
 		uint256 composedFeedId = isPersonal
 			? uint256(sha256(abi.encodePacked(msg.sender, feedId)))
@@ -505,7 +549,9 @@ contract YlideMailerV9 is
 		uint16 parts,
 		uint16 partIdx,
 		bytes calldata content
-	) public payable notTerminated blockLock(firstBlockNumber, blockCountLock) returns (uint256) {
+	) public payable notTerminated returns (uint256) {
+		validateBlockLock(firstBlockNumber, blockCountLock);
+
 		uint256 contentId = buildContentId(
 			msg.sender,
 			uniqueId,
@@ -527,7 +573,7 @@ contract YlideMailerV9 is
 		uint256 feedId = uint256(keccak256(abi.encodePacked(msg.sender, uint256(0), uniqueId)));
 
 		if (mailingFeeds[feedId].owner != address(0)) {
-			revert("Feed already exists");
+			revert FeedAlreadyExists();
 		}
 
 		mailingFeeds[feedId].owner = msg.sender;
@@ -541,18 +587,14 @@ contract YlideMailerV9 is
 	}
 
 	function transferMailingFeedOwnership(uint256 feedId, address newOwner) public {
-		if (mailingFeeds[feedId].owner != msg.sender) {
-			revert("You are not allowed to transfer ownership of this feed");
-		}
+		validateFeedOwner(feedId);
 
 		mailingFeeds[feedId].owner = newOwner;
 		emit MailingFeedOwnershipTransferred(feedId, newOwner);
 	}
 
 	function setMailingFeedBeneficiary(uint256 feedId, address payable newBeneficiary) public {
-		if (mailingFeeds[feedId].owner != msg.sender) {
-			revert("You are not allowed to set beneficiary of this feed");
-		}
+		validateFeedOwner(feedId);
 
 		mailingFeeds[feedId].beneficiary = newBeneficiary;
 		emit MailingFeedBeneficiaryChanged(feedId, newBeneficiary);
@@ -562,7 +604,7 @@ contract YlideMailerV9 is
 		uint256 feedId = uint256(keccak256(abi.encodePacked(msg.sender, uint256(0), uniqueId)));
 
 		if (broadcastFeeds[feedId].owner != address(0)) {
-			revert("Feed already exists");
+			revert FeedExists();
 		}
 
 		broadcastFeeds[feedId].owner = msg.sender;
@@ -580,45 +622,35 @@ contract YlideMailerV9 is
 	}
 
 	function transferBroadcastFeedOwnership(uint256 feedId, address newOwner) public {
-		if (broadcastFeeds[feedId].owner != msg.sender) {
-			revert("You are not allowed to transfer ownership of this feed");
-		}
+		validateBroadCastFeedOwner(feedId);
 
 		broadcastFeeds[feedId].owner = newOwner;
 		emit BroadcastFeedOwnershipTransferred(feedId, newOwner);
 	}
 
 	function setBroadcastFeedBeneficiary(uint256 feedId, address payable newBeneficiary) public {
-		if (broadcastFeeds[feedId].owner != msg.sender) {
-			revert("You are not allowed to set beneficiary of this feed");
-		}
+		validateBroadCastFeedOwner(feedId);
 
 		broadcastFeeds[feedId].beneficiary = newBeneficiary;
 		emit BroadcastFeedBeneficiaryChanged(feedId, newBeneficiary);
 	}
 
 	function changeBroadcastFeedPublicity(uint256 feedId, bool isPublic) public {
-		if (broadcastFeeds[feedId].owner != msg.sender) {
-			revert("You are not allowed to change publicity of this feed");
-		}
+		validateBroadCastFeedOwner(feedId);
 
 		broadcastFeeds[feedId].isPublic = isPublic;
 		emit BroadcastFeedPublicityChanged(feedId, isPublic);
 	}
 
 	function addBroadcastFeedWriter(uint256 feedId, address writer) public {
-		if (broadcastFeeds[feedId].owner != msg.sender) {
-			revert("You are not allowed to add writers to this feed");
-		}
+		validateBroadCastFeedOwner(feedId);
 
 		broadcastFeeds[feedId].writers[writer] = true;
 		emit BroadcastFeedWriterChange(feedId, writer, true);
 	}
 
 	function removeBroadcastFeedWriter(uint256 feedId, address writer) public {
-		if (broadcastFeeds[feedId].owner != msg.sender) {
-			revert("You are not allowed to remove writers from this feed");
-		}
+		validateBroadCastFeedOwner(feedId);
 
 		delete broadcastFeeds[feedId].writers[writer];
 		emit BroadcastFeedWriterChange(feedId, writer, false);
