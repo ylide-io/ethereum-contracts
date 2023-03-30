@@ -404,11 +404,11 @@ contract YlideMailerV9 is
 		SignatureArgs calldata signatureArgs
 	) internal returns (address) {
 		address signer = ECDSA.recover(digest, signatureArgs.signature);
-		require(signer != address(0), "ECDSA: invalid signature");
-		require(block.timestamp < signatureArgs.deadline, "Signature expired");
-		if (signatureArgs.nonce != nonces[signer]++) {
-			revert("Invalid nonce");
-		}
+
+		if (signer == address(0)) revert("ECDSA: invalid signature");
+		if (block.timestamp >= signatureArgs.deadline) revert("Signature expired");
+		if (signatureArgs.nonce != nonces[signer]++) revert("Invalid nonce");
+
 		return signer;
 	}
 
