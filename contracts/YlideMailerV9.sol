@@ -285,10 +285,13 @@ contract YlideMailerV9 is
 			keccak256(
 				abi.encode(
 					keccak256(
-						"SendBulkMail(uint256 feedId,uint256 uniqueId,uint256 nonce,uint256 deadline)"
+						"SendBulkMail(uint256 feedId,uint256 uniqueId,uint256[] recipients,bytes[] keys,bytes content,uint256 nonce,uint256 deadline)"
 					),
 					args.feedId,
 					args.uniqueId,
+					args.recipients,
+					args.keys,
+					args.content,
 					signatureArgs.nonce,
 					signatureArgs.deadline
 				)
@@ -351,10 +354,12 @@ contract YlideMailerV9 is
 			keccak256(
 				abi.encode(
 					keccak256(
-						"AddMailRecipients(uint256 feedId,uint256 uniqueId,uint256 nonce,uint256 deadline)"
+						"AddMailRecipients(uint256 feedId,uint256 uniqueId,uint256[] recipients,bytes[] keys,uint256 nonce,uint256 deadline)"
 					),
 					args.feedId,
 					args.uniqueId,
+					args.recipients,
+					args.keys,
 					signatureArgs.nonce,
 					signatureArgs.deadline
 				)
