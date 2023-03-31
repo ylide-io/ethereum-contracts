@@ -4,7 +4,7 @@
     "publishConfig": {
         "access": "public"
     },
-    "version": "0.8.0-beta.12",
+    "version": "0.8.0-beta.13",
     "description": "Ylide Protocol Ethereum Contracts",
     "main": "lib/index.js",
     "types": "lib/index.d.ts",
@@ -13,7 +13,7 @@
         "typechain-types/**/*"
     ],
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1",
+        "test": "hardhat test",
         "deploy": "hardhat run --network localhost scripts/deploy.ts",
         "gas-test": "hardhat compile && hardhat run --network localhost scripts/gasTest.ts",
         "build": "hardhat compile && pnpm run compile-typechain",
@@ -40,7 +40,7 @@
         "@typechain/hardhat": "6.1.5",
         "@types/mocha": "10.0.1",
         "chai": "4.3.7",
-        "hardhat": "2.12.6",
+        "hardhat": "2.13.0",
         "hardhat-contract-sizer": "^2.8.0",
         "hardhat-gas-reporter": "1.0.9",
         "mocha": "10.2.0",
@@ -48,7 +48,7 @@
         "solidity-coverage": "0.8.2",
         "ts-node": "10.9.1",
         "typechain": "8.1.1",
-        "typescript": "4.9.4"
+        "typescript": "5.0.2"
     },
     "dependencies": {
         "@ethersproject/abi": "5.7.0",
