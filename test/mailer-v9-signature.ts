@@ -2,6 +2,12 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { expect } from 'chai';
 import { ethers, network } from 'hardhat';
 import { describe } from 'mocha';
+import {
+	addMailRecipientsSelector,
+	AddMailRecipientsTypes,
+	sendBulkMailSelector,
+	SendBulkMailTypes,
+} from '../scripts/constants';
 import { currentTimestamp } from '../scripts/utils';
 import { YlideMailerV9 } from '../typechain-types';
 
@@ -16,10 +22,6 @@ describe('MailerV9 EIP712 signature', () => {
 	const recipients = [1, 2];
 	const keys = [new Uint8Array([1, 2, 3, 4, 5, 6]), new Uint8Array([6, 5, 4, 3, 2, 1])];
 	const content = new Uint8Array([8, 7, 8, 7, 8, 7]);
-
-	const sendBulkMail = 'sendBulkMail((uint256,uint256,uint256[],bytes[],bytes),(bytes,uint256,uint256,address))';
-	const addMailRecipients =
-		'addMailRecipients((uint256,uint256,uint256,uint16,uint16,uint256[],bytes[]),(bytes,uint256,uint256,address))';
 
 	before(async () => {
 		[owner, user1, user2] = await ethers.getSigners();
@@ -42,19 +44,8 @@ describe('MailerV9 EIP712 signature', () => {
 			chainId: network.config.chainId,
 			verifyingContract: ylideMailer.address,
 		};
-		const types = {
-			SendBulkMail: [
-				{ name: 'feedId', type: 'uint256' },
-				{ name: 'uniqueId', type: 'uint256' },
-				{ name: 'nonce', type: 'uint256' },
-				{ name: 'deadline', type: 'uint256' },
-				{ name: 'recipients', type: 'uint256[]' },
-				{ name: 'keys', type: 'bytes' },
-				{ name: 'content', type: 'bytes' },
-			],
-		};
 
-		const signature = await user1._signTypedData(domain, types, {
+		const signature = await user1._signTypedData(domain, SendBulkMailTypes, {
 			feedId,
 			uniqueId,
 			nonce,
@@ -65,7 +56,7 @@ describe('MailerV9 EIP712 signature', () => {
 		});
 
 		await expect(
-			ylideMailer.connect(user1)[sendBulkMail](
+			ylideMailer.connect(user1)[sendBulkMailSelector](
 				{
 					feedId,
 					uniqueId,
@@ -78,7 +69,7 @@ describe('MailerV9 EIP712 signature', () => {
 		).to.be.revertedWithCustomError(ylideMailer, 'IsNotYlide');
 
 		await expect(
-			ylideMailer.connect(owner)[sendBulkMail](
+			ylideMailer.connect(owner)[sendBulkMailSelector](
 				{
 					feedId,
 					uniqueId,
@@ -91,7 +82,7 @@ describe('MailerV9 EIP712 signature', () => {
 		).to.be.revertedWithCustomError(ylideMailer, 'InvalidSignature');
 
 		await expect(
-			ylideMailer.connect(owner)[sendBulkMail](
+			ylideMailer.connect(owner)[sendBulkMailSelector](
 				{
 					feedId,
 					uniqueId,
@@ -105,7 +96,7 @@ describe('MailerV9 EIP712 signature', () => {
 
 		const nonceCorrect = await ylideMailer.nonces(user1.address);
 
-		const signature2 = await user1._signTypedData(domain, types, {
+		const signature2 = await user1._signTypedData(domain, SendBulkMailTypes, {
 			feedId,
 			uniqueId,
 			nonce: nonceCorrect,
@@ -116,7 +107,7 @@ describe('MailerV9 EIP712 signature', () => {
 		});
 
 		await expect(
-			ylideMailer.connect(owner)[sendBulkMail](
+			ylideMailer.connect(owner)[sendBulkMailSelector](
 				{
 					feedId,
 					uniqueId,
@@ -130,7 +121,7 @@ describe('MailerV9 EIP712 signature', () => {
 
 		const correctDeadline = deadline + 1000;
 
-		const signature3 = await user1._signTypedData(domain, types, {
+		const signature3 = await user1._signTypedData(domain, SendBulkMailTypes, {
 			feedId,
 			uniqueId,
 			nonce: nonceCorrect,
@@ -140,7 +131,7 @@ describe('MailerV9 EIP712 signature', () => {
 			content,
 		});
 
-		await ylideMailer.connect(owner)[sendBulkMail](
+		await ylideMailer.connect(owner)[sendBulkMailSelector](
 			{
 				feedId,
 				uniqueId,
@@ -167,21 +158,8 @@ describe('MailerV9 EIP712 signature', () => {
 			chainId: network.config.chainId,
 			verifyingContract: ylideMailer.address,
 		};
-		const types = {
-			AddMailRecipients: [
-				{ name: 'feedId', type: 'uint256' },
-				{ name: 'uniqueId', type: 'uint256' },
-				{ name: 'firstBlockNumber', type: 'uint256' },
-				{ name: 'nonce', type: 'uint256' },
-				{ name: 'deadline', type: 'uint256' },
-				{ name: 'partsCount', type: 'uint16' },
-				{ name: 'blockCountLock', type: 'uint16' },
-				{ name: 'recipients', type: 'uint256[]' },
-				{ name: 'keys', type: 'bytes' },
-			],
-		};
 
-		const signature = await user1._signTypedData(domain, types, {
+		const signature = await user1._signTypedData(domain, AddMailRecipientsTypes, {
 			feedId,
 			uniqueId,
 			firstBlockNumber,
@@ -194,7 +172,7 @@ describe('MailerV9 EIP712 signature', () => {
 		});
 
 		await expect(
-			ylideMailer.connect(user1)[addMailRecipients](
+			ylideMailer.connect(user1)[addMailRecipientsSelector](
 				{
 					feedId,
 					uniqueId,
@@ -209,7 +187,7 @@ describe('MailerV9 EIP712 signature', () => {
 		).to.be.revertedWithCustomError(ylideMailer, 'IsNotYlide');
 
 		await expect(
-			ylideMailer.connect(owner)[addMailRecipients](
+			ylideMailer.connect(owner)[addMailRecipientsSelector](
 				{
 					feedId,
 					uniqueId,
@@ -224,7 +202,7 @@ describe('MailerV9 EIP712 signature', () => {
 		).to.be.revertedWithCustomError(ylideMailer, 'InvalidSignature');
 
 		await expect(
-			ylideMailer.connect(owner)[addMailRecipients](
+			ylideMailer.connect(owner)[addMailRecipientsSelector](
 				{
 					feedId,
 					uniqueId,
@@ -240,7 +218,7 @@ describe('MailerV9 EIP712 signature', () => {
 
 		const nonceCorrect = await ylideMailer.nonces(user1.address);
 
-		const signature2 = await user1._signTypedData(domain, types, {
+		const signature2 = await user1._signTypedData(domain, AddMailRecipientsTypes, {
 			feedId,
 			uniqueId,
 			firstBlockNumber,
@@ -253,7 +231,7 @@ describe('MailerV9 EIP712 signature', () => {
 		});
 
 		await expect(
-			ylideMailer.connect(owner)[addMailRecipients](
+			ylideMailer.connect(owner)[addMailRecipientsSelector](
 				{
 					feedId,
 					uniqueId,
@@ -269,7 +247,7 @@ describe('MailerV9 EIP712 signature', () => {
 
 		const correctDeadline = deadline + 1000;
 
-		const signature3 = await user1._signTypedData(domain, types, {
+		const signature3 = await user1._signTypedData(domain, AddMailRecipientsTypes, {
 			feedId,
 			uniqueId,
 			firstBlockNumber,
@@ -281,7 +259,7 @@ describe('MailerV9 EIP712 signature', () => {
 			keys: ethers.utils.concat(keys),
 		});
 
-		await ylideMailer.connect(owner)[addMailRecipients](
+		await ylideMailer.connect(owner)[addMailRecipientsSelector](
 			{
 				feedId,
 				uniqueId,
