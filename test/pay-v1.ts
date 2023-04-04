@@ -5,7 +5,7 @@ import { before, describe, it } from 'mocha';
 import { AddMailRecipientsTypes, SendBulkMailTypes } from '../scripts/constants';
 import { backToSnapshot, currentTimestamp, initiateSnapshot, toWei } from '../scripts/utils';
 import { MockERC20, MockERC721, YlidePayV1 } from '../typechain-types';
-import { YlideMailerV9 } from '../typechain-types/YlideMailerV9';
+import { YlideMailerV9 } from '../typechain-types/contracts/YlideMailerV9';
 
 describe('Token attachment', () => {
 	let token1: MockERC20;
