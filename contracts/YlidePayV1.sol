@@ -95,9 +95,9 @@ contract YlidePayV1 is IYlideTokenAttachment, Owned, Pausable {
 		IYlideMailer.SendBulkArgs calldata args,
 		IYlideMailer.SignatureArgs memory signatureArgs,
 		TransferInfo[] calldata transferInfos
-	) external whenNotPaused returns (uint256) {
+	) external payable whenNotPaused returns (uint256) {
 		if (signatureArgs.sender != msg.sender) revert InvalidSender();
-		uint256 contentId = ylideMailer.sendBulkMail(args, signatureArgs);
+		uint256 contentId = ylideMailer.sendBulkMail{value: msg.value}(args, signatureArgs);
 		_handleTokenAttachment(transferInfos, contentId);
 		return contentId;
 	}
@@ -106,9 +106,9 @@ contract YlidePayV1 is IYlideTokenAttachment, Owned, Pausable {
 		IYlideMailer.AddMailRecipientsArgs calldata args,
 		IYlideMailer.SignatureArgs memory signatureArgs,
 		TransferInfo[] calldata transferInfos
-	) external whenNotPaused returns (uint256) {
+	) external payable whenNotPaused returns (uint256) {
 		if (signatureArgs.sender != msg.sender) revert InvalidSender();
-		uint256 contentId = ylideMailer.addMailRecipients(args, signatureArgs);
+		uint256 contentId = ylideMailer.addMailRecipients{value: msg.value}(args, signatureArgs);
 		_handleTokenAttachment(transferInfos, contentId);
 		return contentId;
 	}
