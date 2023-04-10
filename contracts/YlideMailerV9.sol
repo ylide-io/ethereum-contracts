@@ -27,7 +27,7 @@ contract YlideMailerV9 is
 
 	mapping(address => uint256) public nonces;
 
-	mapping(address => bool) public isYlideTokenAttachment;
+	mapping(address => bool) public isYlide;
 
 	struct BroadcastFeedV9 {
 		address owner;
@@ -54,7 +54,7 @@ contract YlideMailerV9 is
 		uint256 contentId,
 		uint256 previousFeedEventsIndex,
 		bytes key,
-		address tokenAttachment // address of contract handling token attachment
+		Supplement supplement
 	);
 
 	event ContentRecipients(
@@ -189,7 +189,7 @@ contract YlideMailerV9 is
 	}
 
 	function validateIsYlide() internal view {
-		if (!isYlideTokenAttachment[msg.sender]) {
+		if (!isYlide[msg.sender]) {
 			revert IsNotYlide();
 		}
 	}
@@ -211,7 +211,7 @@ contract YlideMailerV9 is
 			revert();
 		}
 		for (uint256 i; i < ylideContracts.length; ) {
-			isYlideTokenAttachment[ylideContracts[i]] = values[i];
+			isYlide[ylideContracts[i]] = values[i];
 			unchecked {
 				i++;
 			}
@@ -308,7 +308,7 @@ contract YlideMailerV9 is
 		address sender,
 		uint256 contentId,
 		bytes memory key,
-		address tokenAttachment
+		Supplement memory supplement
 	) internal {
 		if (mailingFeeds[feedId].owner == address(0)) {
 			revert FeedDoesNotExist();
@@ -329,25 +329,26 @@ contract YlideMailerV9 is
 		);
 		// write anything to map - 20k gas. think about it
 		mailingFeeds[feedId].recipientMessagesCount[rec] += 1;
-		emit MailPush(rec, feedId, sender, contentId, currentFeed, key, tokenAttachment);
+		emit MailPush(rec, feedId, sender, contentId, currentFeed, key, supplement);
 	}
 
 	function sendBulkMail(
 		SendBulkArgs calldata args
 	) external payable notTerminated returns (uint256) {
-		return _sendBulkMail(msg.sender, address(0), args);
+		return _sendBulkMail(msg.sender, args, Supplement(address(0), 0));
 	}
 
 	function sendBulkMail(
 		SendBulkArgs calldata args,
-		SignatureArgs calldata signatureArgs
+		SignatureArgs calldata signatureArgs,
+		Supplement calldata supplement
 	) external payable notTerminated returns (uint256) {
 		validateIsYlide();
 		bytes32 digest = _hashTypedDataV4(
 			keccak256(
 				abi.encode(
 					keccak256(
-						"SendBulkMail(uint256 feedId,uint256 uniqueId,uint256 nonce,uint256 deadline,uint256[] recipients,bytes keys,bytes content)"
+						"SendBulkMail(uint256 feedId,uint256 uniqueId,uint256 nonce,uint256 deadline,uint256[] recipients,bytes keys,bytes content,address contractAddress,uint8 contractType)"
 					),
 					args.feedId,
 					args.uniqueId,
@@ -355,18 +356,20 @@ contract YlideMailerV9 is
 					signatureArgs.deadline,
 					keccak256(abi.encodePacked(args.recipients)),
 					keccak256(abi.encodePacked(concatBytesList(args.keys))),
-					keccak256(abi.encodePacked(args.content))
+					keccak256(abi.encodePacked(args.content)),
+					keccak256(abi.encodePacked(supplement.contractAddress)),
+					keccak256(abi.encodePacked(supplement.contractType))
 				)
 			)
 		);
 		address signer = verifySignature(digest, signatureArgs);
-		return _sendBulkMail(signer, msg.sender, args);
+		return _sendBulkMail(signer, args, supplement);
 	}
 
 	function _sendBulkMail(
 		address sender,
-		address tokenAttachment,
-		SendBulkArgs calldata args
+		SendBulkArgs calldata args,
+		Supplement memory supplement
 	) internal returns (uint256) {
 		uint256 contentId = buildContentId(sender, args.uniqueId, block.number, 1, 0);
 
@@ -379,7 +382,7 @@ contract YlideMailerV9 is
 				sender,
 				contentId,
 				args.keys[i],
-				tokenAttachment
+				supplement
 			);
 		}
 		emit ContentRecipients(contentId, sender, args.recipients);
@@ -394,12 +397,13 @@ contract YlideMailerV9 is
 		AddMailRecipientsArgs calldata args
 	) external payable notTerminated returns (uint256) {
 		validateBlockLock(args.firstBlockNumber, args.blockCountLock);
-		return _addMailRecipients(msg.sender, address(0), args);
+		return _addMailRecipients(msg.sender, args, Supplement(address(0), 0));
 	}
 
 	function addMailRecipients(
 		AddMailRecipientsArgs calldata args,
-		SignatureArgs calldata signatureArgs
+		SignatureArgs calldata signatureArgs,
+		Supplement calldata supplement
 	) external payable notTerminated returns (uint256) {
 		validateIsYlide();
 		validateBlockLock(args.firstBlockNumber, args.blockCountLock);
@@ -407,7 +411,7 @@ contract YlideMailerV9 is
 			keccak256(
 				abi.encode(
 					keccak256(
-						"AddMailRecipients(uint256 feedId,uint256 uniqueId,uint256 firstBlockNumber,uint256 nonce,uint256 deadline,uint16 partsCount,uint16 blockCountLock,uint256[] recipients,bytes keys)"
+						"AddMailRecipients(uint256 feedId,uint256 uniqueId,uint256 firstBlockNumber,uint256 nonce,uint256 deadline,uint16 partsCount,uint16 blockCountLock,uint256[] recipients,bytes keys,address contractAddress,uint8 contractType)"
 					),
 					args.feedId,
 					args.uniqueId,
@@ -417,18 +421,20 @@ contract YlideMailerV9 is
 					args.partsCount,
 					args.blockCountLock,
 					keccak256(abi.encodePacked(args.recipients)),
-					keccak256(abi.encodePacked(concatBytesList(args.keys)))
+					keccak256(abi.encodePacked(concatBytesList(args.keys))),
+					keccak256(abi.encodePacked(supplement.contractAddress)),
+					keccak256(abi.encodePacked(supplement.contractType))
 				)
 			)
 		);
 		address signer = verifySignature(digest, signatureArgs);
-		return _addMailRecipients(signer, msg.sender, args);
+		return _addMailRecipients(signer, args, supplement);
 	}
 
 	function _addMailRecipients(
 		address sender,
-		address tokenAttachment,
-		AddMailRecipientsArgs memory args
+		AddMailRecipientsArgs memory args,
+		Supplement memory supplement
 	) internal returns (uint256) {
 		uint256 contentId = buildContentId(
 			sender,
@@ -444,7 +450,7 @@ contract YlideMailerV9 is
 				sender,
 				contentId,
 				args.keys[i],
-				tokenAttachment
+				supplement
 			);
 		}
 		emit ContentRecipients(contentId, sender, args.recipients);
