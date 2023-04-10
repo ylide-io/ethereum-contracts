@@ -357,8 +357,8 @@ contract YlideMailerV9 is
 					keccak256(abi.encodePacked(args.recipients)),
 					keccak256(abi.encodePacked(concatBytesList(args.keys))),
 					keccak256(abi.encodePacked(args.content)),
-					keccak256(abi.encodePacked(supplement.contractAddress)),
-					keccak256(abi.encodePacked(supplement.contractType))
+					supplement.contractAddress,
+					supplement.contractType
 				)
 			)
 		);
@@ -422,8 +422,8 @@ contract YlideMailerV9 is
 					args.blockCountLock,
 					keccak256(abi.encodePacked(args.recipients)),
 					keccak256(abi.encodePacked(concatBytesList(args.keys))),
-					keccak256(abi.encodePacked(supplement.contractAddress)),
-					keccak256(abi.encodePacked(supplement.contractType))
+					supplement.contractAddress,
+					supplement.contractType
 				)
 			)
 		);

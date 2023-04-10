@@ -102,6 +102,8 @@ describe('Token attachment', () => {
 			recipients,
 			keys: ethers.utils.concat(keys),
 			content,
+			contractAddress: ylidePay.address,
+			contractType: 1,
 		});
 
 		await ylidePay
@@ -137,6 +139,8 @@ describe('Token attachment', () => {
 			recipients,
 			keys: ethers.utils.concat(keys),
 			content,
+			contractAddress: ylidePay.address,
+			contractType: 1,
 		});
 
 		await token1.connect(user1).approve(ylidePay.address, toWei(200));
@@ -188,6 +192,8 @@ describe('Token attachment', () => {
 			recipients,
 			keys: ethers.utils.concat(keys),
 			content,
+			contractAddress: ylidePay.address,
+			contractType: 1,
 		});
 
 		await ylidePay
@@ -218,6 +224,8 @@ describe('Token attachment', () => {
 			recipients,
 			keys: ethers.utils.concat(keys),
 			content,
+			contractAddress: ylidePay.address,
+			contractType: 1,
 		});
 
 		await nft1.connect(user1).approve(ylidePay.address, 456);
@@ -273,6 +281,8 @@ describe('Token attachment', () => {
 			recipients,
 			keys: ethers.utils.concat(keys),
 			content,
+			contractAddress: ylidePay.address,
+			contractType: 1,
 		});
 
 		await ylidePay
@@ -323,6 +333,8 @@ describe('Token attachment', () => {
 			blockCountLock,
 			recipients,
 			keys: ethers.utils.concat(keys),
+			contractAddress: ylidePay.address,
+			contractType: 1,
 		});
 
 		await ylidePay
@@ -355,6 +367,8 @@ describe('Token attachment', () => {
 			blockCountLock,
 			recipients,
 			keys: ethers.utils.concat(keys),
+			contractAddress: ylidePay.address,
+			contractType: 1,
 		});
 		await ylidePay
 			.connect(user1)
@@ -401,6 +415,8 @@ describe('Token attachment', () => {
 			blockCountLock,
 			recipients,
 			keys: ethers.utils.concat(keys),
+			contractAddress: ylidePay.address,
+			contractType: 1,
 		});
 
 		await ylidePay
@@ -436,6 +452,8 @@ describe('Token attachment', () => {
 			blockCountLock,
 			recipients,
 			keys: ethers.utils.concat(keys),
+			contractAddress: ylidePay.address,
+			contractType: 1,
 		});
 		await ylidePay
 			.connect(user1)
@@ -485,6 +503,8 @@ describe('Token attachment', () => {
 			blockCountLock,
 			recipients,
 			keys: ethers.utils.concat(keys),
+			contractAddress: ylidePay.address,
+			contractType: 1,
 		});
 		await ylidePay
 			.connect(user1)
