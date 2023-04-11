@@ -33,3 +33,9 @@ export const AddMailRecipientsTypes = {
 		{ name: 'contractType', type: 'uint8' },
 	],
 };
+
+export enum ContractType {
+	NONE,
+	PAY,
+	SAFE,
+}

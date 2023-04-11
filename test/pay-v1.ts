@@ -2,7 +2,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { expect } from 'chai';
 import { ethers, network } from 'hardhat';
 import { before, describe, it } from 'mocha';
-import { AddMailRecipientsTypes, SendBulkMailTypes } from '../scripts/constants';
+import { AddMailRecipientsTypes, ContractType, SendBulkMailTypes } from '../scripts/constants';
 import { backToSnapshot, currentTimestamp, initiateSnapshot, toWei } from '../scripts/utils';
 import { MockERC20, MockERC721, YlidePayV1 } from '../typechain-types';
 import { YlideMailerV9 } from '../typechain-types/contracts/YlideMailerV9';
@@ -76,7 +76,7 @@ describe('Token attachment', () => {
 			verifyingContract: ylideMailer.address,
 		};
 		firstBlockNumber = await ethers.provider.getBlockNumber();
-		await ylideMailer.connect(owner).setIsYlideTokenAttachment([ylidePay.address], [true]);
+		await ylideMailer.connect(owner).setIsYlide([ylidePay.address], [true]);
 	});
 
 	it('Owner can set ylideMailer in YlidePay', async () => {
@@ -103,7 +103,7 @@ describe('Token attachment', () => {
 			keys: ethers.utils.concat(keys),
 			content,
 			contractAddress: ylidePay.address,
-			contractType: 1,
+			contractType: ContractType.PAY,
 		});
 
 		await ylidePay
@@ -140,7 +140,7 @@ describe('Token attachment', () => {
 			keys: ethers.utils.concat(keys),
 			content,
 			contractAddress: ylidePay.address,
-			contractType: 1,
+			contractType: ContractType.PAY,
 		});
 
 		await token1.connect(user1).approve(ylidePay.address, toWei(200));
@@ -193,7 +193,7 @@ describe('Token attachment', () => {
 			keys: ethers.utils.concat(keys),
 			content,
 			contractAddress: ylidePay.address,
-			contractType: 1,
+			contractType: ContractType.PAY,
 		});
 
 		await ylidePay
@@ -225,7 +225,7 @@ describe('Token attachment', () => {
 			keys: ethers.utils.concat(keys),
 			content,
 			contractAddress: ylidePay.address,
-			contractType: 1,
+			contractType: ContractType.PAY,
 		});
 
 		await nft1.connect(user1).approve(ylidePay.address, 456);
@@ -282,7 +282,7 @@ describe('Token attachment', () => {
 			keys: ethers.utils.concat(keys),
 			content,
 			contractAddress: ylidePay.address,
-			contractType: 1,
+			contractType: ContractType.PAY,
 		});
 
 		await ylidePay
@@ -334,7 +334,7 @@ describe('Token attachment', () => {
 			recipients,
 			keys: ethers.utils.concat(keys),
 			contractAddress: ylidePay.address,
-			contractType: 1,
+			contractType: ContractType.PAY,
 		});
 
 		await ylidePay
@@ -368,7 +368,7 @@ describe('Token attachment', () => {
 			recipients,
 			keys: ethers.utils.concat(keys),
 			contractAddress: ylidePay.address,
-			contractType: 1,
+			contractType: ContractType.PAY,
 		});
 		await ylidePay
 			.connect(user1)
@@ -416,7 +416,7 @@ describe('Token attachment', () => {
 			recipients,
 			keys: ethers.utils.concat(keys),
 			contractAddress: ylidePay.address,
-			contractType: 1,
+			contractType: ContractType.PAY,
 		});
 
 		await ylidePay
@@ -453,7 +453,7 @@ describe('Token attachment', () => {
 			recipients,
 			keys: ethers.utils.concat(keys),
 			contractAddress: ylidePay.address,
-			contractType: 1,
+			contractType: ContractType.PAY,
 		});
 		await ylidePay
 			.connect(user1)
@@ -504,7 +504,7 @@ describe('Token attachment', () => {
 			recipients,
 			keys: ethers.utils.concat(keys),
 			contractAddress: ylidePay.address,
-			contractType: 1,
+			contractType: ContractType.PAY,
 		});
 		await ylidePay
 			.connect(user1)

@@ -5,6 +5,7 @@ import "./helpers/Owned.sol";
 import "./helpers/Terminatable.sol";
 import "./helpers/FiduciaryDuty.sol";
 import "./helpers/BlockNumberRingBufferIndex.sol";
+import {CONTRACT_TYPE_NONE} from "./helpers/Constants.sol";
 
 import "@openzeppelin/contracts/utils/cryptography/draft-EIP712.sol";
 
@@ -203,7 +204,7 @@ contract YlideMailerV9 is
 		}
 	}
 
-	function setIsYlideTokenAttachment(
+	function setIsYlide(
 		address[] calldata ylideContracts,
 		bool[] calldata values
 	) external onlyOwner {
@@ -335,7 +336,7 @@ contract YlideMailerV9 is
 	function sendBulkMail(
 		SendBulkArgs calldata args
 	) external payable notTerminated returns (uint256) {
-		return _sendBulkMail(msg.sender, args, Supplement(address(0), 0));
+		return _sendBulkMail(msg.sender, args, Supplement(address(0), CONTRACT_TYPE_NONE));
 	}
 
 	function sendBulkMail(
@@ -397,7 +398,7 @@ contract YlideMailerV9 is
 		AddMailRecipientsArgs calldata args
 	) external payable notTerminated returns (uint256) {
 		validateBlockLock(args.firstBlockNumber, args.blockCountLock);
-		return _addMailRecipients(msg.sender, args, Supplement(address(0), 0));
+		return _addMailRecipients(msg.sender, args, Supplement(address(0), CONTRACT_TYPE_NONE));
 	}
 
 	function addMailRecipients(

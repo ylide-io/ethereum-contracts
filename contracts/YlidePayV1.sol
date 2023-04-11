@@ -7,6 +7,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 import {Owned} from "./helpers/Owned.sol";
+import {CONTRACT_TYPE_PAY} from "./helpers/Constants.sol";
 
 import {IYlideMailer} from "./interfaces/IYlideMailer.sol";
 import {IYlideTokenAttachment} from "./interfaces/IYlideTokenAttachment.sol";
@@ -100,7 +101,7 @@ contract YlidePayV1 is IYlideTokenAttachment, Owned, Pausable {
 		uint256 contentId = ylideMailer.sendBulkMail{value: msg.value}(
 			args,
 			signatureArgs,
-			IYlideMailer.Supplement(address(this), 1)
+			IYlideMailer.Supplement(address(this), CONTRACT_TYPE_PAY)
 		);
 		_handleTokenAttachment(transferInfos, contentId);
 		return contentId;
@@ -115,7 +116,7 @@ contract YlidePayV1 is IYlideTokenAttachment, Owned, Pausable {
 		uint256 contentId = ylideMailer.addMailRecipients{value: msg.value}(
 			args,
 			signatureArgs,
-			IYlideMailer.Supplement(address(this), 1)
+			IYlideMailer.Supplement(address(this), CONTRACT_TYPE_PAY)
 		);
 		_handleTokenAttachment(transferInfos, contentId);
 		return contentId;

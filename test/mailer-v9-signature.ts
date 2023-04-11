@@ -31,7 +31,7 @@ describe('MailerV9 EIP712 signature', () => {
 		const tx = await ylideMailer.createMailingFeed('768768768768121341');
 		const receipt = await tx.wait();
 		feedId = String(receipt.events?.[0].args?.[0] || 0);
-		await ylideMailer.connect(owner).setIsYlideTokenAttachment([owner.address], [true]);
+		await ylideMailer.connect(owner).setIsYlide([owner.address], [true]);
 	});
 
 	it('sendBulkMail with signature', async () => {
