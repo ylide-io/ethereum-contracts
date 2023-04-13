@@ -17,12 +17,4 @@ contract MockSafe is ISafe {
 	function isOwner(address owner) external view returns (bool) {
 		return owners[owner];
 	}
-
-	function getStorageAt(uint256, uint256) external view returns (bytes memory) {
-		return new bytes(0);
-	}
-
-	function VERSION() external view returns (string memory) {
-		return "1.1.1";
-	}
 }

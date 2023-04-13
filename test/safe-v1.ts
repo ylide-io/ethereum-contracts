@@ -3,8 +3,8 @@ import { expect } from 'chai';
 import { ethers, network } from 'hardhat';
 import { before, describe, it } from 'mocha';
 import { AddMailRecipientsTypes, ContractType, SendBulkMailTypes } from '../scripts/constants';
-import { backToSnapshot, currentTimestamp, initiateSnapshot, toWei } from '../scripts/utils';
-import { MockERC20, MockERC721, MockSafe, SafeProxy__factory, YlidePayV1, YlideSafeV1 } from '../typechain-types';
+import { backToSnapshot, currentTimestamp, initiateSnapshot } from '../scripts/utils';
+import { MockSafe, YlideSafeV1 } from '../typechain-types';
 import { YlideMailerV9 } from '../typechain-types/contracts/YlideMailerV9';
 
 describe('Ylide Safe', () => {
@@ -221,26 +221,4 @@ describe('Ylide Safe', () => {
 			expect(event.args.supplement.contractType).equal(ContractType.SAFE);
 		}
 	});
-
-	// it.only('Check', async () => {
-	// 	// await ylideSafe.verify('0x199f00993B56996fB40fdBa93f49133b4f4e2105').then(console.log);
-	// 	// await ylideSafe.verify('0x1667AC30a0797Ac753546864E166c196C91151B5').then(console.log);
-	// 	// await ylideSafe.verify2('0x199f00993B56996fB40fdBa93f49133b4f4e2105').then(console.log);
-
-	// 	await ylideSafe
-	// 		.code('0x199f00993B56996fB40fdBa93f49133b4f4e2105')
-	// 		.then(r => ylideSafe.hash(r))
-	// 		.then(console.log);
-
-	// 	await ylideSafe.codehash('0x199f00993B56996fB40fdBa93f49133b4f4e2105').then(console.log);
-
-	// 	// const c = new ethers.Contract(
-	// 	// 	'0x199f00993B56996fB40fdBa93f49133b4f4e2105',
-	// 	// 	SafeProxy__factory.createInterface(),
-	// 	// 	ethers.provider,
-	// 	// );
-
-	// 	// await ylideSafe.proxyCreationCode().then(console.log);
-	// 	// await ylideSafe.proxyRuntimeCode().then(console.log);
-	// });
 });
