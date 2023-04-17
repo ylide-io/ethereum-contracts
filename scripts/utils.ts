@@ -1,6 +1,5 @@
 import { ethers, network } from 'hardhat';
 import { Snapshot } from './types';
-import crypto from 'crypto';
 
 export function toWei(amount: string | number) {
 	return ethers.utils.parseUnits(String(amount), 18);
