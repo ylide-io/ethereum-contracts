@@ -212,7 +212,7 @@ describe('Ylide Safe', () => {
 			recipients,
 			keys: ethers.utils.concat(keys),
 			content,
-			contractAddress: mockSafe.address,
+			contractAddress: ylideSafe.address,
 			contractType: ContractType.SAFE,
 		});
 
@@ -233,7 +233,7 @@ describe('Ylide Safe', () => {
 
 		expect(mailEvents.length).equal(2);
 		for (const event of mailEvents) {
-			expect(event.args.supplement.contractAddress).equal(mockSafe.address);
+			expect(event.args.supplement.contractAddress).equal(ylideSafe.address);
 			expect(event.args.supplement.contractType).equal(ContractType.SAFE);
 		}
 
@@ -265,7 +265,7 @@ describe('Ylide Safe', () => {
 			blockCountLock,
 			recipients,
 			keys: ethers.utils.concat(keys),
-			contractAddress: mockSafe.address,
+			contractAddress: ylideSafe.address,
 			contractType: ContractType.SAFE,
 		});
 
@@ -286,7 +286,7 @@ describe('Ylide Safe', () => {
 
 		expect(mailEvents.length).equal(2);
 		for (const event of mailEvents) {
-			expect(event.args.supplement.contractAddress).equal(mockSafe.address);
+			expect(event.args.supplement.contractAddress).equal(ylideSafe.address);
 			expect(event.args.supplement.contractType).equal(ContractType.SAFE);
 		}
 

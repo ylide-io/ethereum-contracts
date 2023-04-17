@@ -45,7 +45,7 @@ contract YlideSafeV1 is Owned, Pausable {
 		uint256 contentId = ylideMailer.sendBulkMail{value: msg.value}(
 			args,
 			signatureArgs,
-			IYlideMailer.Supplement(address(safeArgs.safeSender), CONTRACT_TYPE_SAFE)
+			IYlideMailer.Supplement(address(this), CONTRACT_TYPE_SAFE)
 		);
 
 		emit SafeMails(contentId, safeArgs.safeSender, safeArgs.safeRecipients);
@@ -63,7 +63,7 @@ contract YlideSafeV1 is Owned, Pausable {
 		uint256 contentId = ylideMailer.addMailRecipients{value: msg.value}(
 			args,
 			signatureArgs,
-			IYlideMailer.Supplement(address(safeArgs.safeSender), CONTRACT_TYPE_SAFE)
+			IYlideMailer.Supplement(address(this), CONTRACT_TYPE_SAFE)
 		);
 
 		emit SafeMails(contentId, safeArgs.safeSender, safeArgs.safeRecipients);
