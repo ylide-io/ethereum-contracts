@@ -13,10 +13,18 @@ contract YlideSafeV1 is Owned, Pausable {
 
 	IYlideMailer public ylideMailer;
 
+	struct SafeArgs {
+		ISafe safeSender;
+		ISafe[] safeRecipients;
+	}
+
 	error InvalidSender();
-	error NotSafeOwner();
+	error NotSafeSender();
+	error NotSafeRecipient(uint256 recipient, ISafe safe);
+	error InvalidArguments();
 
 	event YlideMailerChanged(address indexed ylideMailer);
+	event SafeMails(uint256 indexed contentId, ISafe indexed safeSender, ISafe[] safeRecipients);
 
 	constructor(IYlideMailer _ylideMailer) Owned() Pausable() {
 		ylideMailer = _ylideMailer;
@@ -29,34 +37,57 @@ contract YlideSafeV1 is Owned, Pausable {
 
 	function sendBulkMail(
 		IYlideMailer.SendBulkArgs calldata args,
-		IYlideMailer.SignatureArgs memory signatureArgs,
-		ISafe safe
+		IYlideMailer.SignatureArgs calldata signatureArgs,
+		SafeArgs calldata safeArgs
 	) external payable whenNotPaused returns (uint256) {
-		if (signatureArgs.sender != msg.sender) revert InvalidSender();
-		if (safe.isOwner(msg.sender) == false) revert NotSafeOwner();
+		_validate(args.recipients, signatureArgs.sender, safeArgs);
 
-		return
-			ylideMailer.sendBulkMail{value: msg.value}(
-				args,
-				signatureArgs,
-				IYlideMailer.Supplement(address(safe), CONTRACT_TYPE_SAFE)
-			);
+		uint256 contentId = ylideMailer.sendBulkMail{value: msg.value}(
+			args,
+			signatureArgs,
+			IYlideMailer.Supplement(address(safeArgs.safeSender), CONTRACT_TYPE_SAFE)
+		);
+
+		emit SafeMails(contentId, safeArgs.safeSender, safeArgs.safeRecipients);
+
+		return contentId;
 	}
 
 	function addMailRecipients(
 		IYlideMailer.AddMailRecipientsArgs calldata args,
-		IYlideMailer.SignatureArgs memory signatureArgs,
-		ISafe safe
+		IYlideMailer.SignatureArgs calldata signatureArgs,
+		SafeArgs calldata safeArgs
 	) external payable whenNotPaused returns (uint256) {
-		if (signatureArgs.sender != msg.sender) revert InvalidSender();
-		if (safe.isOwner(msg.sender) == false) revert NotSafeOwner();
+		_validate(args.recipients, signatureArgs.sender, safeArgs);
 
-		return
-			ylideMailer.addMailRecipients{value: msg.value}(
-				args,
-				signatureArgs,
-				IYlideMailer.Supplement(address(safe), CONTRACT_TYPE_SAFE)
-			);
+		uint256 contentId = ylideMailer.addMailRecipients{value: msg.value}(
+			args,
+			signatureArgs,
+			IYlideMailer.Supplement(address(safeArgs.safeSender), CONTRACT_TYPE_SAFE)
+		);
+
+		emit SafeMails(contentId, safeArgs.safeSender, safeArgs.safeRecipients);
+
+		return contentId;
+	}
+
+	function _validate(
+		uint256[] calldata recipients,
+		address sender,
+		SafeArgs calldata safeArgs
+	) internal view {
+		if (sender != msg.sender) revert InvalidSender();
+		if (recipients.length != safeArgs.safeRecipients.length) revert InvalidArguments();
+		if (safeArgs.safeSender.isOwner(msg.sender) == false) revert NotSafeSender();
+		for (uint256 i; i < recipients.length; ) {
+			if (
+				address(safeArgs.safeRecipients[i]) != address(0) &&
+				safeArgs.safeRecipients[i].isOwner(address(uint160(recipients[i]))) == false
+			) revert NotSafeRecipient(recipients[i], safeArgs.safeRecipients[i]);
+			unchecked {
+				i++;
+			}
+		}
 	}
 
 	function pause() external onlyOwner {
