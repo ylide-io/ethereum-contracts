@@ -78,7 +78,10 @@ contract YlideSafeV1 is Owned, Pausable {
 	) internal view {
 		if (sender != msg.sender) revert InvalidSender();
 		if (recipients.length != safeArgs.safeRecipients.length) revert InvalidArguments();
-		if (safeArgs.safeSender.isOwner(msg.sender) == false) revert NotSafeSender();
+		if (
+			address(safeArgs.safeSender) != address(0) &&
+			safeArgs.safeSender.isOwner(msg.sender) == false
+		) revert NotSafeSender();
 		for (uint256 i; i < recipients.length; ) {
 			if (
 				address(safeArgs.safeRecipients[i]) != address(0) &&

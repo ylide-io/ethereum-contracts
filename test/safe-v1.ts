@@ -296,4 +296,55 @@ describe('Ylide Safe', () => {
 		expect(safeEvents[0].args.safeSender).equal(mockSafe.address);
 		expect(safeEvents[0].args.safeRecipients).deep.equal(safeRecipients);
 	});
+
+	it('Not owner of any safe can send message to some user with Safe', async () => {
+		await backToSnapshot(snapshot);
+
+		await mockSafe2.setOwners([user2.address], [true]);
+
+		const deadline = await currentTimestamp().then(t => t + 1000);
+		const nonce = await ylideMailer.nonces(user1.address);
+		const recipients = [BigNumber.from(user2.address), BigNumber.from(user3.address)];
+		const safeRecipients = [mockSafe2.address, ethers.constants.AddressZero];
+		const signature = await user1._signTypedData(domain, AddMailRecipientsTypes, {
+			feedId,
+			uniqueId,
+			firstBlockNumber,
+			nonce,
+			deadline,
+			partsCount,
+			blockCountLock,
+			recipients,
+			keys: ethers.utils.concat(keys),
+			contractAddress: ylideSafe.address,
+			contractType: ContractType.SAFE,
+		});
+
+		expect(await mockSafe.isOwner(user1.address)).to.be.false;
+
+		await ylideSafe.connect(user1).addMailRecipients(
+			getAddMailRecipientsArgs(recipients),
+			{
+				signature,
+				sender: user1.address,
+				nonce,
+				deadline,
+			},
+			{ safeSender: ethers.constants.AddressZero, safeRecipients },
+		);
+
+		const mailEvents = await ylideMailer.queryFilter(ylideMailer.filters.MailPush(null, feedId));
+
+		expect(mailEvents.length).equal(2);
+		for (const event of mailEvents) {
+			expect(event.args.supplement.contractAddress).equal(ylideSafe.address);
+			expect(event.args.supplement.contractType).equal(ContractType.SAFE);
+		}
+
+		const safeEvents = await ylideSafe.queryFilter(ylideSafe.filters.SafeMails(mailEvents[0].args.contentId));
+		expect(safeEvents.length).equal(1);
+		expect(safeEvents[0].args.contentId).equal(mailEvents[0].args.contentId);
+		expect(safeEvents[0].args.safeSender).equal(ethers.constants.AddressZero);
+		expect(safeEvents[0].args.safeRecipients).deep.equal(safeRecipients);
+	});
 });
