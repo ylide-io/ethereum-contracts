@@ -4,7 +4,7 @@
 	"publishConfig": {
 		"access": "public"
 	},
-	"version": "0.8.0-beta.16",
+	"version": "0.8.0-beta.17",
 	"description": "Ylide Protocol Ethereum Contracts",
 	"main": "lib/index.js",
 	"types": "lib/index.d.ts",
@@ -15,6 +15,7 @@
 	"scripts": {
 		"test": "hardhat test",
 		"deploy": "hardhat run --network localhost scripts/deploy.ts",
+		"clean": "hardhat clean",
 		"gas-test": "hardhat clean && hardhat compile && hardhat run --network localhost scripts/gasTest.ts",
 		"build": "hardhat clean && hardhat compile && pnpm run compile-typechain",
 		"compile-typechain": "tsc --project tsconfig-typechain.json"
