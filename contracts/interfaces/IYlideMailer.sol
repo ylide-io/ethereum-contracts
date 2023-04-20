@@ -27,13 +27,20 @@ interface IYlideMailer {
 		address sender;
 	}
 
+	struct Supplement {
+		address contractAddress;
+		uint8 contractType;
+	}
+
 	function sendBulkMail(
 		SendBulkArgs calldata args,
-		SignatureArgs calldata signatureArgs
+		SignatureArgs calldata signatureArgs,
+		Supplement calldata supplement
 	) external payable returns (uint256);
 
 	function addMailRecipients(
 		AddMailRecipientsArgs calldata args,
-		SignatureArgs calldata signatureArgs
+		SignatureArgs calldata signatureArgs,
+		Supplement calldata supplement
 	) external payable returns (uint256);
 }

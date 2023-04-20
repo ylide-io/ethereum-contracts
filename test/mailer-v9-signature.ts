@@ -3,10 +3,10 @@ import { expect } from 'chai';
 import { ethers, network } from 'hardhat';
 import { describe } from 'mocha';
 import {
-	addMailRecipientsSelector,
 	AddMailRecipientsTypes,
-	sendBulkMailSelector,
 	SendBulkMailTypes,
+	addMailRecipientsSelector,
+	sendBulkMailSelector,
 } from '../scripts/constants';
 import { currentTimestamp } from '../scripts/utils';
 import { YlideMailerV9 } from '../typechain-types';
@@ -31,11 +31,10 @@ describe('MailerV9 EIP712 signature', () => {
 		const tx = await ylideMailer.createMailingFeed('768768768768121341');
 		const receipt = await tx.wait();
 		feedId = String(receipt.events?.[0].args?.[0] || 0);
-		await ylideMailer.connect(owner).setIsYlideTokenAttachment([owner.address], [true]);
+		await ylideMailer.connect(owner).setIsYlide([owner.address], [true]);
 	});
 
 	it('sendBulkMail with signature', async () => {
-		// 'SendBulkMail(uint256 feedId,uint256 uniqueId,uint256 nonce,uint256 deadline,uint256[] recipients,bytes keys,bytes content)';
 		const nonce = 100;
 		const deadline = await currentTimestamp();
 		const domain = {
@@ -53,6 +52,8 @@ describe('MailerV9 EIP712 signature', () => {
 			recipients,
 			keys: ethers.utils.concat(keys),
 			content,
+			contractAddress: owner.address,
+			contractType: 200,
 		});
 
 		await expect(
@@ -64,7 +65,9 @@ describe('MailerV9 EIP712 signature', () => {
 					keys,
 					content,
 				},
+
 				{ signature, sender: user1.address, nonce, deadline },
+				{ contractAddress: owner.address, contractType: 200 },
 			),
 		).to.be.revertedWithCustomError(ylideMailer, 'IsNotYlide');
 
@@ -78,6 +81,7 @@ describe('MailerV9 EIP712 signature', () => {
 					content,
 				},
 				{ signature, sender: user2.address, nonce, deadline },
+				{ contractAddress: owner.address, contractType: 200 },
 			),
 		).to.be.revertedWithCustomError(ylideMailer, 'InvalidSignature');
 
@@ -91,6 +95,7 @@ describe('MailerV9 EIP712 signature', () => {
 					content,
 				},
 				{ signature, sender: user1.address, nonce, deadline },
+				{ contractAddress: owner.address, contractType: 200 },
 			),
 		).to.be.revertedWithCustomError(ylideMailer, 'InvalidNonce');
 
@@ -104,6 +109,8 @@ describe('MailerV9 EIP712 signature', () => {
 			recipients,
 			keys: ethers.utils.concat(keys),
 			content,
+			contractAddress: owner.address,
+			contractType: 200,
 		});
 
 		await expect(
@@ -116,6 +123,7 @@ describe('MailerV9 EIP712 signature', () => {
 					content,
 				},
 				{ signature: signature2, sender: user1.address, nonce: nonceCorrect, deadline },
+				{ contractAddress: owner.address, contractType: 200 },
 			),
 		).to.be.revertedWithCustomError(ylideMailer, 'SignatureExpired');
 
@@ -129,6 +137,8 @@ describe('MailerV9 EIP712 signature', () => {
 			recipients,
 			keys: ethers.utils.concat(keys),
 			content,
+			contractAddress: owner.address,
+			contractType: 200,
 		});
 
 		await ylideMailer.connect(owner)[sendBulkMailSelector](
@@ -140,13 +150,13 @@ describe('MailerV9 EIP712 signature', () => {
 				content,
 			},
 			{ signature: signature3, sender: user1.address, nonce: nonceCorrect, deadline: correctDeadline },
+			{ contractAddress: owner.address, contractType: 200 },
 		);
 
 		expect(await ylideMailer.nonces(user1.address)).to.be.equal(nonceCorrect.add(1));
 	});
 
 	it('addMailRecipients with signature', async () => {
-		// "AddMailRecipients(uint256 feedId,uint256 uniqueId,uint256 firstBlockNumber,uint256 nonce,uint256 deadline, uint16 partsCount,uint16 blockCountLock,uint256[] recipients,bytes keys)"
 		const firstBlockNumber = await ethers.provider.getBlockNumber();
 		const partsCount = 2;
 		const blockCountLock = 10;
@@ -169,6 +179,8 @@ describe('MailerV9 EIP712 signature', () => {
 			blockCountLock,
 			recipients,
 			keys: ethers.utils.concat(keys),
+			contractAddress: owner.address,
+			contractType: 200,
 		});
 
 		await expect(
@@ -183,6 +195,7 @@ describe('MailerV9 EIP712 signature', () => {
 					firstBlockNumber,
 				},
 				{ signature, sender: user1.address, nonce, deadline },
+				{ contractAddress: owner.address, contractType: 200 },
 			),
 		).to.be.revertedWithCustomError(ylideMailer, 'IsNotYlide');
 
@@ -198,6 +211,7 @@ describe('MailerV9 EIP712 signature', () => {
 					firstBlockNumber,
 				},
 				{ signature, sender: user2.address, nonce, deadline },
+				{ contractAddress: owner.address, contractType: 200 },
 			),
 		).to.be.revertedWithCustomError(ylideMailer, 'InvalidSignature');
 
@@ -213,6 +227,7 @@ describe('MailerV9 EIP712 signature', () => {
 					firstBlockNumber,
 				},
 				{ signature, sender: user1.address, nonce, deadline },
+				{ contractAddress: owner.address, contractType: 200 },
 			),
 		).to.be.revertedWithCustomError(ylideMailer, 'InvalidNonce');
 
@@ -228,6 +243,8 @@ describe('MailerV9 EIP712 signature', () => {
 			blockCountLock,
 			recipients,
 			keys: ethers.utils.concat(keys),
+			contractAddress: owner.address,
+			contractType: 200,
 		});
 
 		await expect(
@@ -242,6 +259,7 @@ describe('MailerV9 EIP712 signature', () => {
 					firstBlockNumber,
 				},
 				{ signature: signature2, sender: user1.address, nonce: nonceCorrect, deadline },
+				{ contractAddress: owner.address, contractType: 200 },
 			),
 		).to.be.revertedWithCustomError(ylideMailer, 'SignatureExpired');
 
@@ -257,6 +275,8 @@ describe('MailerV9 EIP712 signature', () => {
 			blockCountLock,
 			recipients,
 			keys: ethers.utils.concat(keys),
+			contractAddress: owner.address,
+			contractType: 200,
 		});
 
 		await ylideMailer.connect(owner)[addMailRecipientsSelector](
@@ -270,6 +290,7 @@ describe('MailerV9 EIP712 signature', () => {
 				firstBlockNumber,
 			},
 			{ signature: signature3, sender: user1.address, nonce: nonceCorrect, deadline: correctDeadline },
+			{ contractAddress: owner.address, contractType: 200 },
 		);
 
 		expect(await ylideMailer.nonces(user1.address)).to.be.equal(nonceCorrect.add(1));

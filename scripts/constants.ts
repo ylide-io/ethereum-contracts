@@ -1,8 +1,8 @@
 export const sendBulkMailSelector =
-	'sendBulkMail((uint256,uint256,uint256[],bytes[],bytes),(bytes,uint256,uint256,address))';
+	'sendBulkMail((uint256,uint256,uint256[],bytes[],bytes),(bytes,uint256,uint256,address),(address,uint8))';
 
 export const addMailRecipientsSelector =
-	'addMailRecipients((uint256,uint256,uint256,uint16,uint16,uint256[],bytes[]),(bytes,uint256,uint256,address))';
+	'addMailRecipients((uint256,uint256,uint256,uint16,uint16,uint256[],bytes[]),(bytes,uint256,uint256,address),(address,uint8))';
 
 export const SendBulkMailTypes = {
 	SendBulkMail: [
@@ -13,6 +13,8 @@ export const SendBulkMailTypes = {
 		{ name: 'recipients', type: 'uint256[]' },
 		{ name: 'keys', type: 'bytes' },
 		{ name: 'content', type: 'bytes' },
+		{ name: 'contractAddress', type: 'address' },
+		{ name: 'contractType', type: 'uint8' },
 	],
 };
 
@@ -27,5 +29,13 @@ export const AddMailRecipientsTypes = {
 		{ name: 'blockCountLock', type: 'uint16' },
 		{ name: 'recipients', type: 'uint256[]' },
 		{ name: 'keys', type: 'bytes' },
+		{ name: 'contractAddress', type: 'address' },
+		{ name: 'contractType', type: 'uint8' },
 	],
 };
+
+export enum ContractType {
+	NONE,
+	PAY,
+	SAFE,
+}
