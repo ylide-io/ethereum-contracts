@@ -92,18 +92,6 @@ describe('Ylide Safe', () => {
 			'0xf677181dfe0e10c6ea91d012f09c7f6da7477ec75489a2322fbbfe9d878224b2314121c86229a7a77a2a0a5f3b72fe4668ea8183938154374a8cde9aeff1a6d41b';
 
 		await expect(
-			ylideSafe.connect(user2).sendBulkMail(
-				getSendBulMailArgs([BigNumber.from(user1.address)]),
-				{
-					signature,
-					sender: user1.address,
-					nonce: 0,
-					deadline: 123,
-				},
-				{ safeSender: mockSafe.address, safeRecipients: [mockSafe2.address] },
-			),
-		).to.be.revertedWithCustomError(ylideSafe, 'InvalidSender');
-		await expect(
 			ylideSafe.connect(user2).addMailRecipients(
 				getAddMailRecipientsArgs([BigNumber.from(user1.address)]),
 				{
@@ -140,65 +128,10 @@ describe('Ylide Safe', () => {
 				{ safeSender: mockSafe.address, safeRecipients: [mockSafe2.address] },
 			),
 		).to.be.revertedWithCustomError(ylideSafe, 'InvalidArguments');
-
-		await expect(
-			ylideSafe.connect(user2).sendBulkMail(
-				getSendBulMailArgs([BigNumber.from(user1.address)]),
-				{
-					signature,
-					sender: user2.address,
-					nonce: 0,
-					deadline: 123,
-				},
-				{ safeSender: mockSafe.address, safeRecipients: [mockSafe2.address] },
-			),
-		).to.be.revertedWithCustomError(ylideSafe, 'NotSafeSender');
-		await expect(
-			ylideSafe.connect(user2).addMailRecipients(
-				getAddMailRecipientsArgs([BigNumber.from(user1.address)]),
-				{
-					signature,
-					sender: user2.address,
-					nonce: 0,
-					deadline: 123,
-				},
-				{ safeSender: mockSafe.address, safeRecipients: [mockSafe2.address] },
-			),
-		).to.be.revertedWithCustomError(ylideSafe, 'NotSafeSender');
-
-		await mockSafe.connect(owner).setOwners([user2.address], [true]);
-
-		await expect(
-			ylideSafe.connect(user2).sendBulkMail(
-				getSendBulMailArgs([BigNumber.from(user1.address)]),
-				{
-					signature,
-					sender: user2.address,
-					nonce: 0,
-					deadline: 123,
-				},
-				{ safeSender: mockSafe.address, safeRecipients: [mockSafe2.address] },
-			),
-		).to.be.revertedWithCustomError(ylideSafe, 'NotSafeRecipient');
-		await expect(
-			ylideSafe.connect(user2).addMailRecipients(
-				getAddMailRecipientsArgs([BigNumber.from(user1.address)]),
-				{
-					signature,
-					sender: user2.address,
-					nonce: 0,
-					deadline: 123,
-				},
-				{ safeSender: mockSafe.address, safeRecipients: [mockSafe2.address] },
-			),
-		).to.be.revertedWithCustomError(ylideSafe, 'NotSafeRecipient');
 	});
 
 	it('Owner of safe can send message using sendBulkMail', async () => {
 		await backToSnapshot(snapshot);
-
-		await mockSafe.setOwners([user1.address], [true]);
-		await mockSafe2.setOwners([user2.address], [true]);
 
 		const deadline = await currentTimestamp().then(t => t + 1000);
 		const nonce = await ylideMailer.nonces(user1.address);
@@ -215,8 +148,6 @@ describe('Ylide Safe', () => {
 			contractAddress: ylideSafe.address,
 			contractType: ContractType.SAFE,
 		});
-
-		expect(await mockSafe.isOwner(user1.address)).to.be.true;
 
 		await ylideSafe.connect(user1).sendBulkMail(
 			getSendBulMailArgs(recipients),
@@ -247,10 +178,6 @@ describe('Ylide Safe', () => {
 	it('Owner of safe can send message using addMailRecipients', async () => {
 		await backToSnapshot(snapshot);
 
-		await mockSafe.setOwners([user1.address], [true]);
-		await mockSafe2.setOwners([user2.address], [true]);
-		await mockSafe3.setOwners([user3.address], [true]);
-
 		const deadline = await currentTimestamp().then(t => t + 1000);
 		const nonce = await ylideMailer.nonces(user1.address);
 		const recipients = [BigNumber.from(user2.address), BigNumber.from(user3.address)];
@@ -268,8 +195,6 @@ describe('Ylide Safe', () => {
 			contractAddress: ylideSafe.address,
 			contractType: ContractType.SAFE,
 		});
-
-		expect(await mockSafe.isOwner(user1.address)).to.be.true;
 
 		await ylideSafe.connect(user1).addMailRecipients(
 			getAddMailRecipientsArgs(recipients),
@@ -300,8 +225,6 @@ describe('Ylide Safe', () => {
 	it('Not owner of any safe can send message to some user with Safe', async () => {
 		await backToSnapshot(snapshot);
 
-		await mockSafe2.setOwners([user2.address], [true]);
-
 		const deadline = await currentTimestamp().then(t => t + 1000);
 		const nonce = await ylideMailer.nonces(user1.address);
 		const recipients = [BigNumber.from(user2.address), BigNumber.from(user3.address)];
@@ -319,8 +242,6 @@ describe('Ylide Safe', () => {
 			contractAddress: ylideSafe.address,
 			contractType: ContractType.SAFE,
 		});
-
-		expect(await mockSafe.isOwner(user1.address)).to.be.false;
 
 		await ylideSafe.connect(user1).addMailRecipients(
 			getAddMailRecipientsArgs(recipients),

@@ -6,7 +6,6 @@ import {Owned} from "./helpers/Owned.sol";
 import {CONTRACT_TYPE_SAFE} from "./helpers/Constants.sol";
 
 import {IYlideMailer} from "./interfaces/IYlideMailer.sol";
-import {ISafe} from "./interfaces/ISafe.sol";
 
 contract YlideSafeV1 is Owned, Pausable {
 	uint256 public constant version = 1;
@@ -14,17 +13,19 @@ contract YlideSafeV1 is Owned, Pausable {
 	IYlideMailer public ylideMailer;
 
 	struct SafeArgs {
-		ISafe safeSender;
-		ISafe[] safeRecipients;
+		address safeSender;
+		address[] safeRecipients;
 	}
 
 	error InvalidSender();
-	error NotSafeSender();
-	error NotSafeRecipient(uint256 recipient, ISafe safe);
 	error InvalidArguments();
 
 	event YlideMailerChanged(address indexed ylideMailer);
-	event SafeMails(uint256 indexed contentId, ISafe indexed safeSender, ISafe[] safeRecipients);
+	event SafeMails(
+		uint256 indexed contentId,
+		address indexed safeSender,
+		address[] safeRecipients
+	);
 
 	constructor(IYlideMailer _ylideMailer) Owned() Pausable() {
 		ylideMailer = _ylideMailer;
@@ -78,19 +79,6 @@ contract YlideSafeV1 is Owned, Pausable {
 	) internal view {
 		if (sender != msg.sender) revert InvalidSender();
 		if (recipients.length != safeArgs.safeRecipients.length) revert InvalidArguments();
-		if (
-			address(safeArgs.safeSender) != address(0) &&
-			safeArgs.safeSender.isOwner(msg.sender) == false
-		) revert NotSafeSender();
-		for (uint256 i; i < recipients.length; ) {
-			if (
-				address(safeArgs.safeRecipients[i]) != address(0) &&
-				safeArgs.safeRecipients[i].isOwner(address(uint160(recipients[i]))) == false
-			) revert NotSafeRecipient(recipients[i], safeArgs.safeRecipients[i]);
-			unchecked {
-				i++;
-			}
-		}
 	}
 
 	function pause() external onlyOwner {

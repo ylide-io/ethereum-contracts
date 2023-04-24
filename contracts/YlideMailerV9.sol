@@ -58,12 +58,6 @@ contract YlideMailerV9 is
 		Supplement supplement
 	);
 
-	event ContentRecipients(
-		uint256 indexed contentId,
-		address indexed sender,
-		uint256[] recipients
-	);
-
 	event BroadcastPush(
 		address indexed sender,
 		uint256 indexed feedId,
@@ -386,7 +380,6 @@ contract YlideMailerV9 is
 				supplement
 			);
 		}
-		emit ContentRecipients(contentId, sender, args.recipients);
 
 		payOut(1, args.recipients.length, 0);
 		payOutMailingFeed(args.feedId, args.recipients.length);
@@ -454,7 +447,6 @@ contract YlideMailerV9 is
 				supplement
 			);
 		}
-		emit ContentRecipients(contentId, sender, args.recipients);
 
 		payOut(0, args.recipients.length, 0);
 		payOutMailingFeed(args.feedId, args.recipients.length);
