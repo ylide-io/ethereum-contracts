@@ -46,10 +46,6 @@ contract YlidePayV1 is IYlideTokenAttachment, Owned, Pausable {
 		ylideMailer = _ylideMailer;
 	}
 
-	function contractType() public pure returns (ContractType) {
-		return ContractType.Pay;
-	}
-
 	function setYlideMailer(IYlideMailer _ylideMailer) external onlyOwner {
 		ylideMailer = _ylideMailer;
 	}
