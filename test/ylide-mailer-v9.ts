@@ -74,10 +74,10 @@ describe('Ylide Safe', () => {
 		await backToSnapshot(snapshot);
 		const senderSafeAddress = ethers.Wallet.createRandom().address;
 		const user2SafeAddress = ethers.Wallet.createRandom().address;
-		const supplementType = ['uint8', 'address', 'address'] as const;
+		const supplementType = ['uint8', 'uint256', 'address', 'uint256', 'address'] as const;
 		const supplements = [
-			[1, senderSafeAddress, user2SafeAddress] as const,
-			[1, senderSafeAddress, ethers.constants.AddressZero] as const,
+			[1, 2, senderSafeAddress, 100500, user2SafeAddress] as const,
+			[1, 2, senderSafeAddress, 0, ethers.constants.AddressZero] as const,
 		];
 		const recKeySups = [
 			{
@@ -109,10 +109,10 @@ describe('Ylide Safe', () => {
 	it('Not safe owner sendBulkMail to safe owners', async () => {
 		await backToSnapshot(snapshot);
 		const user2SafeAddress = ethers.Wallet.createRandom().address;
-		const supplementType = ['uint8', 'address', 'address'] as const;
+		const supplementType = ['uint8', 'uint256', 'address', 'uint256', 'address'] as const;
 		const supplements = [
-			[1, ethers.constants.AddressZero, user2SafeAddress] as const,
-			[1, ethers.constants.AddressZero, ethers.constants.AddressZero] as const,
+			[1, 0, ethers.constants.AddressZero, 100500, user2SafeAddress] as const,
+			[1, 0, ethers.constants.AddressZero, 0, ethers.constants.AddressZero] as const,
 		];
 		const recKeySups = [
 			{
@@ -145,10 +145,10 @@ describe('Ylide Safe', () => {
 		await backToSnapshot(snapshot);
 		const senderSafeAddress = ethers.Wallet.createRandom().address;
 		const user2SafeAddress = ethers.Wallet.createRandom().address;
-		const supplementType = ['uint8', 'address', 'address'] as const;
+		const supplementType = ['uint8', 'uint256', 'address', 'uint256', 'address'] as const;
 		const supplements = [
-			[1, senderSafeAddress, user2SafeAddress] as const,
-			[1, senderSafeAddress, ethers.constants.AddressZero] as const,
+			[1, 2, senderSafeAddress, 3, user2SafeAddress] as const,
+			[1, 2, senderSafeAddress, 0, ethers.constants.AddressZero] as const,
 		];
 		const recKeySups = [
 			{
@@ -182,10 +182,10 @@ describe('Ylide Safe', () => {
 	it('Not safe owner sendBulkMail to safe owners', async () => {
 		await backToSnapshot(snapshot);
 		const user2SafeAddress = ethers.Wallet.createRandom().address;
-		const supplementType = ['uint8', 'address', 'address'] as const;
+		const supplementType = ['uint8', 'uint256', 'address', 'uint256', 'address'] as const;
 		const supplements = [
-			[1, ethers.constants.AddressZero, user2SafeAddress] as const,
-			[1, ethers.constants.AddressZero, ethers.constants.AddressZero] as const,
+			[1, 2, ethers.constants.AddressZero, 3, user2SafeAddress] as const,
+			[1, 2, ethers.constants.AddressZero, 0, ethers.constants.AddressZero] as const,
 		];
 		const recKeySups = [
 			{

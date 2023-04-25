@@ -7,7 +7,7 @@ interface IYlideMailer {
 		bytes key;
 		// uint8 type - bytes data
 		// NONE: 0x
-		// SAFE: 1 - address safeSender, address safeRecipient
+		// SAFE: 1 - uint256 senderSafeChainId, address safeSender, uint256 recipientSafeChainId, address safeRecipient
 		bytes supplement;
 	}
 
