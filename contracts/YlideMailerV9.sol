@@ -5,7 +5,6 @@ import "./helpers/Owned.sol";
 import "./helpers/Terminatable.sol";
 import "./helpers/FiduciaryDuty.sol";
 import "./helpers/BlockNumberRingBufferIndex.sol";
-import {CONTRACT_TYPE_NONE} from "./helpers/Constants.sol";
 
 import "@openzeppelin/contracts/utils/cryptography/draft-EIP712.sol";
 
@@ -27,8 +26,6 @@ contract YlideMailerV9 is
 	mapping(uint256 => uint256) public recipientToMailingFeedJoinEventsIndex;
 
 	mapping(address => uint256) public nonces;
-
-	mapping(address => bool) public isYlide;
 
 	struct BroadcastFeedV9 {
 		address owner;
@@ -55,7 +52,7 @@ contract YlideMailerV9 is
 		uint256 contentId,
 		uint256 previousFeedEventsIndex,
 		bytes key,
-		Supplement supplement
+		bytes supplement
 	);
 
 	event BroadcastPush(
@@ -183,36 +180,6 @@ contract YlideMailerV9 is
 		}
 	}
 
-	function validateIsYlide() internal view {
-		if (!isYlide[msg.sender]) {
-			revert IsNotYlide();
-		}
-	}
-
-	function concatBytesList(bytes[] memory list) internal pure returns (bytes memory result) {
-		for (uint256 i; i < list.length; ) {
-			result = bytes.concat(result, list[i]);
-			unchecked {
-				i++;
-			}
-		}
-	}
-
-	function setIsYlide(
-		address[] calldata ylideContracts,
-		bool[] calldata values
-	) external onlyOwner {
-		if (ylideContracts.length != values.length) {
-			revert();
-		}
-		for (uint256 i; i < ylideContracts.length; ) {
-			isYlide[ylideContracts[i]] = values[i];
-			unchecked {
-				i++;
-			}
-		}
-	}
-
 	function setMailingFeedFees(uint256 feedId, uint256 _recipientFee) public {
 		validateFeedOwner(feedId);
 		mailingFeeds[feedId].recipientFee = _recipientFee;
@@ -299,172 +266,85 @@ contract YlideMailerV9 is
 
 	function emitMailPush(
 		uint256 feedId,
-		uint256 rec,
 		address sender,
 		uint256 contentId,
-		bytes memory key,
-		Supplement memory supplement
+		RecKeySup calldata recKeySup
 	) internal {
 		if (mailingFeeds[feedId].owner == address(0)) {
 			revert FeedDoesNotExist();
 		}
 		uint256 shrinkedBlock = block.number / 128;
-		if (mailingFeeds[feedId].recipientMessagesCount[rec] == 0) {
-			uint256 currentMailingFeedJoinEventsIndex = recipientToMailingFeedJoinEventsIndex[rec];
-			recipientToMailingFeedJoinEventsIndex[rec] = storeBlockNumber(
+		if (mailingFeeds[feedId].recipientMessagesCount[recKeySup.recipient] == 0) {
+			uint256 currentMailingFeedJoinEventsIndex = recipientToMailingFeedJoinEventsIndex[
+				recKeySup.recipient
+			];
+			recipientToMailingFeedJoinEventsIndex[recKeySup.recipient] = storeBlockNumber(
 				currentMailingFeedJoinEventsIndex,
 				shrinkedBlock
 			);
-			emit MailingFeedJoined(feedId, rec, currentMailingFeedJoinEventsIndex);
+			emit MailingFeedJoined(feedId, recKeySup.recipient, currentMailingFeedJoinEventsIndex);
 		}
-		uint256 currentFeed = mailingFeeds[feedId].recipientToMailIndex[rec];
-		mailingFeeds[feedId].recipientToMailIndex[rec] = storeBlockNumber(
+		uint256 currentFeed = mailingFeeds[feedId].recipientToMailIndex[recKeySup.recipient];
+		mailingFeeds[feedId].recipientToMailIndex[recKeySup.recipient] = storeBlockNumber(
 			currentFeed,
 			shrinkedBlock
 		);
 		// write anything to map - 20k gas. think about it
-		mailingFeeds[feedId].recipientMessagesCount[rec] += 1;
-		emit MailPush(rec, feedId, sender, contentId, currentFeed, key, supplement);
-	}
-
-	function sendBulkMail(
-		SendBulkArgs calldata args
-	) external payable notTerminated returns (uint256) {
-		return _sendBulkMail(msg.sender, args, Supplement(address(0), CONTRACT_TYPE_NONE));
-	}
-
-	function sendBulkMail(
-		SendBulkArgs calldata args,
-		SignatureArgs calldata signatureArgs,
-		Supplement calldata supplement
-	) external payable notTerminated returns (uint256) {
-		validateIsYlide();
-		bytes32 digest = _hashTypedDataV4(
-			keccak256(
-				abi.encode(
-					keccak256(
-						"SendBulkMail(uint256 feedId,uint256 uniqueId,uint256 nonce,uint256 deadline,uint256[] recipients,bytes keys,bytes content,address contractAddress,uint8 contractType)"
-					),
-					args.feedId,
-					args.uniqueId,
-					signatureArgs.nonce,
-					signatureArgs.deadline,
-					keccak256(abi.encodePacked(args.recipients)),
-					keccak256(abi.encodePacked(concatBytesList(args.keys))),
-					keccak256(abi.encodePacked(args.content)),
-					supplement.contractAddress,
-					supplement.contractType
-				)
-			)
-		);
-		address signer = verifySignature(digest, signatureArgs);
-		return _sendBulkMail(signer, args, supplement);
-	}
-
-	function _sendBulkMail(
-		address sender,
-		SendBulkArgs calldata args,
-		Supplement memory supplement
-	) internal returns (uint256) {
-		uint256 contentId = buildContentId(sender, args.uniqueId, block.number, 1, 0);
-
-		emit MessageContent(contentId, sender, 1, 0, args.content);
-
-		for (uint i = 0; i < args.recipients.length; i++) {
-			emitMailPush(
-				args.feedId,
-				args.recipients[i],
-				sender,
-				contentId,
-				args.keys[i],
-				supplement
-			);
-		}
-
-		payOut(1, args.recipients.length, 0);
-		payOutMailingFeed(args.feedId, args.recipients.length);
-
-		return contentId;
-	}
-
-	function addMailRecipients(
-		AddMailRecipientsArgs calldata args
-	) external payable notTerminated returns (uint256) {
-		validateBlockLock(args.firstBlockNumber, args.blockCountLock);
-		return _addMailRecipients(msg.sender, args, Supplement(address(0), CONTRACT_TYPE_NONE));
-	}
-
-	function addMailRecipients(
-		AddMailRecipientsArgs calldata args,
-		SignatureArgs calldata signatureArgs,
-		Supplement calldata supplement
-	) external payable notTerminated returns (uint256) {
-		validateIsYlide();
-		validateBlockLock(args.firstBlockNumber, args.blockCountLock);
-		bytes32 digest = _hashTypedDataV4(
-			keccak256(
-				abi.encode(
-					keccak256(
-						"AddMailRecipients(uint256 feedId,uint256 uniqueId,uint256 firstBlockNumber,uint256 nonce,uint256 deadline,uint16 partsCount,uint16 blockCountLock,uint256[] recipients,bytes keys,address contractAddress,uint8 contractType)"
-					),
-					args.feedId,
-					args.uniqueId,
-					args.firstBlockNumber,
-					signatureArgs.nonce,
-					signatureArgs.deadline,
-					args.partsCount,
-					args.blockCountLock,
-					keccak256(abi.encodePacked(args.recipients)),
-					keccak256(abi.encodePacked(concatBytesList(args.keys))),
-					supplement.contractAddress,
-					supplement.contractType
-				)
-			)
-		);
-		address signer = verifySignature(digest, signatureArgs);
-		return _addMailRecipients(signer, args, supplement);
-	}
-
-	function _addMailRecipients(
-		address sender,
-		AddMailRecipientsArgs memory args,
-		Supplement memory supplement
-	) internal returns (uint256) {
-		uint256 contentId = buildContentId(
+		mailingFeeds[feedId].recipientMessagesCount[recKeySup.recipient] += 1;
+		emit MailPush(
+			recKeySup.recipient,
+			feedId,
 			sender,
-			args.uniqueId,
-			args.firstBlockNumber,
-			args.partsCount,
-			args.blockCountLock
+			contentId,
+			currentFeed,
+			recKeySup.key,
+			recKeySup.supplement
 		);
-		for (uint i = 0; i < args.recipients.length; i++) {
-			emitMailPush(
-				args.feedId,
-				args.recipients[i],
-				sender,
-				contentId,
-				args.keys[i],
-				supplement
-			);
+	}
+
+	function sendBulkMail(
+		uint256 feedId,
+		uint256 uniqueId,
+		RecKeySup[] calldata args,
+		bytes calldata content
+	) external payable returns (uint256) {
+		uint256 contentId = buildContentId(msg.sender, uniqueId, block.number, 1, 0);
+
+		emit MessageContent(contentId, msg.sender, 1, 0, content);
+
+		for (uint i = 0; i < args.length; i++) {
+			emitMailPush(feedId, msg.sender, contentId, args[i]);
 		}
 
-		payOut(0, args.recipients.length, 0);
-		payOutMailingFeed(args.feedId, args.recipients.length);
+		payOut(1, args.length, 0);
+		payOutMailingFeed(feedId, args.length);
 
 		return contentId;
 	}
 
-	function verifySignature(
-		bytes32 digest,
-		SignatureArgs calldata signatureArgs
-	) internal returns (address) {
-		address signer = ECDSA.recover(digest, signatureArgs.signature);
+	function addMailRecipients(
+		uint256 feedId,
+		uint256 uniqueId,
+		RecKeySup[] calldata args,
+		uint256 firstBlockNumber,
+		uint16 partsCount,
+		uint16 blockCountLock
+	) external payable returns (uint256) {
+		uint256 contentId = buildContentId(
+			msg.sender,
+			uniqueId,
+			firstBlockNumber,
+			partsCount,
+			blockCountLock
+		);
+		for (uint i = 0; i < args.length; i++) {
+			emitMailPush(feedId, msg.sender, contentId, args[i]);
+		}
 
-		if (signer != signatureArgs.sender) revert InvalidSignature();
-		if (signatureArgs.nonce != nonces[signer]++) revert InvalidNonce();
-		if (block.timestamp >= signatureArgs.deadline) revert SignatureExpired();
+		payOut(0, args.length, 0);
+		payOutMailingFeed(feedId, args.length);
 
-		return signer;
+		return contentId;
 	}
 
 	/* ---------------------------------------------- */

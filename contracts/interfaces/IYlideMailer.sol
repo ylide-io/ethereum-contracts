@@ -2,45 +2,28 @@
 pragma solidity ^0.8.17;
 
 interface IYlideMailer {
-	struct SendBulkArgs {
-		uint256 feedId;
-		uint256 uniqueId;
-		uint256[] recipients;
-		bytes[] keys;
-		bytes content;
-	}
-
-	struct AddMailRecipientsArgs {
-		uint256 feedId;
-		uint256 uniqueId;
-		uint256 firstBlockNumber;
-		uint16 partsCount;
-		uint16 blockCountLock;
-		uint256[] recipients;
-		bytes[] keys;
-	}
-
-	struct SignatureArgs {
-		bytes signature;
-		uint256 nonce;
-		uint256 deadline;
-		address sender;
-	}
-
-	struct Supplement {
-		address contractAddress;
-		uint8 contractType;
+	struct RecKeySup {
+		uint256 recipient;
+		bytes key;
+		// uint8 type - bytes data
+		// NONE: 0x
+		// SAFE: 1 - address safeSender, address safeRecipient
+		bytes supplement;
 	}
 
 	function sendBulkMail(
-		SendBulkArgs calldata args,
-		SignatureArgs calldata signatureArgs,
-		Supplement calldata supplement
+		uint256 feedId,
+		uint256 uniqueId,
+		RecKeySup[] calldata args,
+		bytes calldata content
 	) external payable returns (uint256);
 
 	function addMailRecipients(
-		AddMailRecipientsArgs calldata args,
-		SignatureArgs calldata signatureArgs,
-		Supplement calldata supplement
+		uint256 feedId,
+		uint256 uniqueId,
+		RecKeySup[] calldata args,
+		uint256 firstBlockNumber,
+		uint16 partsCount,
+		uint16 blockCountLock
 	) external payable returns (uint256);
 }
