@@ -25,8 +25,6 @@ contract YlideMailerV9 is
 
 	mapping(uint256 => uint256) public recipientToMailingFeedJoinEventsIndex;
 
-	mapping(address => uint256) public nonces;
-
 	struct BroadcastFeedV9 {
 		address owner;
 		address payable beneficiary;
