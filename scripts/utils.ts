@@ -1,5 +1,6 @@
 import { ethers, network } from 'hardhat';
 import { Snapshot } from './types';
+import { Contract } from 'ethers';
 
 export function toWei(amount: string | number) {
 	return ethers.utils.parseUnits(String(amount), 18);
@@ -30,3 +31,12 @@ export const backToSnapshot = async (snapshot: Snapshot) => {
 export const initiateSnapshot = (): Snapshot => ({
 	initial: '0x0',
 });
+
+export function getSelectors(contract: Contract) {
+	return Object.keys(contract.interface.functions).reduce((acc, val) => {
+		if (val !== 'init(bytes)') {
+			acc.push(contract.interface.getSighash(val));
+		}
+		return acc;
+	}, [] as string[]);
+}
