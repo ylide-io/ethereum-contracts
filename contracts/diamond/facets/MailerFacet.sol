@@ -2,16 +2,15 @@
 pragma solidity ^0.8.17;
 
 import {YlideStorage} from "../storage/YlideStorage.sol";
+
 import {LibRingBufferIndex} from "../libraries/LibRingBufferIndex.sol";
 
 contract MailerFacet is YlideStorage {
 	uint256 public constant version = 9;
 
-	error FeedDoesNotExist();
-	error NumberLessThanFirstBlockNumber();
-	error NumberMoreThanFirstBlockNumberPlusBlockCountLock();
-	error FeedNotAllowed();
-
+	// ================================
+	// ====== Arguments structs =======
+	// ================================
 	struct RecKeySup {
 		uint256 recipient;
 		bytes key;
@@ -20,6 +19,18 @@ contract MailerFacet is YlideStorage {
 		// SAFE: 1 - uint256 senderSafeChainId, address safeSender, uint256 recipientSafeChainId, address safeRecipient
 		bytes supplement;
 	}
+
+	// ================================
+	// =========== Errors =============
+	// ================================
+	error FeedDoesNotExist();
+	error NumberLessThanFirstBlockNumber();
+	error NumberMoreThanFirstBlockNumberPlusBlockCountLock();
+	error FeedNotAllowed();
+
+	// ================================
+	// ===== Internal methods =========
+	// ================================
 
 	function validateBlockLock(uint256 firstBlockNumber, uint256 blockCountLock) internal view {
 		if (block.number < firstBlockNumber) {
@@ -46,7 +57,7 @@ contract MailerFacet is YlideStorage {
 		uint256 firstBlockNumber,
 		uint256 partsCount,
 		uint256 blockCountLock
-	) public pure returns (uint256) {
+	) internal pure returns (uint256) {
 		uint256 _hash = uint256(
 			sha256(
 				bytes.concat(
@@ -73,11 +84,9 @@ contract MailerFacet is YlideStorage {
 
 	/* ----------- MAIL PUSHES ----------- */
 	/**
-	 * sendSmallMail - for sending tiny content to 1 recipient
 	 * sendBulkMail - for sending tiny content to multiple recipients
 	 * addMailRecipients - for adding recipients to any message (multipart or not)
 	 */
-
 	function emitMailPush(
 		uint256 feedId,
 		address sender,
@@ -111,6 +120,53 @@ contract MailerFacet is YlideStorage {
 			recKeySup.supplement
 		);
 	}
+
+	/* ------------- MAIL BROADCASTS ---------------- */
+	/**
+	 * sendBroadcast - for sending broadcast content in one transaction
+	 * sendBroadcastHeader - for emitting broadcast header after uploading all parts of the content
+	 */
+	function emitBroadcastPush(address sender, uint256 feedId, uint256 contentId) internal {
+		uint256 current = s.broadcastFeeds[feedId].messagesIndex;
+		s.broadcastFeeds[feedId].messagesIndex = LibRingBufferIndex.storeBlockNumber(
+			current,
+			block.number / 128
+		);
+		s.broadcastFeeds[feedId].messagesCount += 1;
+		emit BroadcastPush(sender, feedId, contentId, current);
+	}
+
+	/* ------------- Payout helpers ---------------- */
+
+	function payOut(uint256 contentParts, uint256 recipients, uint256 broadcasts) internal virtual {
+		uint256 totalValue = s.contentPartFee *
+			contentParts +
+			s.recipientFee *
+			recipients +
+			s.broadcastFee *
+			broadcasts;
+		if (totalValue > 0) {
+			s.beneficiary.transfer(totalValue);
+		}
+	}
+
+	function payOutMailingFeed(uint256 feedId, uint256 recipients) internal virtual {
+		uint256 totalValue = s.mailingFeeds[feedId].recipientFee * recipients;
+		if (totalValue > 0) {
+			s.mailingFeeds[feedId].beneficiary.transfer(totalValue);
+		}
+	}
+
+	function payOutBroadcastFeed(uint256 feedId, uint256 broadcasts) internal virtual {
+		uint256 totalValue = s.broadcastFeeds[feedId].broadcastFee * broadcasts;
+		if (totalValue > 0) {
+			s.broadcastFeeds[feedId].beneficiary.transfer(totalValue);
+		}
+	}
+
+	// ================================
+	// ===== External methods =========
+	// ================================
 
 	function sendBulkMail(
 		uint256 feedId,
@@ -157,29 +213,12 @@ contract MailerFacet is YlideStorage {
 		return contentId;
 	}
 
-	/* ---------------------------------------------- */
-	/* ------------- MAIL BROADCASTS ---------------- */
-	/**
-	 * sendBroadcast - for sending broadcast content in one transaction
-	 * sendBroadcastHeader - for emitting broadcast header after uploading all parts of the content
-	 */
-
-	function emitBroadcastPush(address sender, uint256 feedId, uint256 contentId) internal {
-		uint256 current = s.broadcastFeeds[feedId].messagesIndex;
-		s.broadcastFeeds[feedId].messagesIndex = LibRingBufferIndex.storeBlockNumber(
-			current,
-			block.number / 128
-		);
-		s.broadcastFeeds[feedId].messagesCount += 1;
-		emit BroadcastPush(sender, feedId, contentId, current);
-	}
-
 	function sendBroadcast(
 		bool isPersonal,
 		uint256 feedId,
 		uint256 uniqueId,
 		bytes calldata content
-	) public payable returns (uint256) {
+	) external payable returns (uint256) {
 		validateAccessToBroadcastFeed(isPersonal, feedId);
 
 		uint256 composedFeedId = isPersonal
@@ -206,7 +245,7 @@ contract MailerFacet is YlideStorage {
 		uint256 firstBlockNumber,
 		uint16 partsCount,
 		uint16 blockCountLock
-	) public payable returns (uint256) {
+	) external payable returns (uint256) {
 		validateAccessToBroadcastFeed(isPersonal, feedId);
 
 		uint256 composedFeedId = isPersonal
@@ -231,8 +270,6 @@ contract MailerFacet is YlideStorage {
 		return contentId;
 	}
 
-	/* ---------------------------------------------- */
-
 	// For sending content part - for broadcast or not
 	function sendMessageContentPart(
 		uint256 uniqueId,
@@ -241,7 +278,7 @@ contract MailerFacet is YlideStorage {
 		uint16 parts,
 		uint16 partIdx,
 		bytes calldata content
-	) public payable returns (uint256) {
+	) external payable returns (uint256) {
 		validateBlockLock(firstBlockNumber, blockCountLock);
 
 		uint256 contentId = buildContentId(
@@ -256,31 +293,5 @@ contract MailerFacet is YlideStorage {
 		payOut(1, 0, 0);
 
 		return contentId;
-	}
-
-	function payOut(uint256 contentParts, uint256 recipients, uint256 broadcasts) internal virtual {
-		uint256 totalValue = s.contentPartFee *
-			contentParts +
-			s.recipientFee *
-			recipients +
-			s.broadcastFee *
-			broadcasts;
-		if (totalValue > 0) {
-			s.beneficiary.transfer(totalValue);
-		}
-	}
-
-	function payOutMailingFeed(uint256 feedId, uint256 recipients) internal virtual {
-		uint256 totalValue = s.mailingFeeds[feedId].recipientFee * recipients;
-		if (totalValue > 0) {
-			s.mailingFeeds[feedId].beneficiary.transfer(totalValue);
-		}
-	}
-
-	function payOutBroadcastFeed(uint256 feedId, uint256 broadcasts) internal virtual {
-		uint256 totalValue = s.broadcastFeeds[feedId].broadcastFee * broadcasts;
-		if (totalValue > 0) {
-			s.broadcastFeeds[feedId].beneficiary.transfer(totalValue);
-		}
 	}
 }

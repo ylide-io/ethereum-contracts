@@ -36,9 +36,11 @@ struct FacetFunctionSelectors {
 }
 
 struct DiamondStorage {
+	//
 	// ================================
 	// ======= Diamond specific =======
 	// ================================
+	//
 	// maps function selector to the facet address and
 	// the position of the selector in the facetFunctionSelectors.selectors array
 	mapping(bytes4 => FacetAddressAndPosition) selectorToFacetAndPosition;
@@ -51,9 +53,11 @@ struct DiamondStorage {
 	mapping(bytes4 => bool) supportedInterfaces;
 	// owner of the contract
 	address contractOwner;
+	//
 	// ================================
 	// ======= Ylide specific =======
 	// ================================
+	//
 	mapping(address => RegistryEntry) addressToPublicKey;
 	mapping(address => bool) bouncers;
 	mapping(uint256 => MailingFeed) mailingFeeds;

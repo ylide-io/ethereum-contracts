@@ -2,14 +2,26 @@
 pragma solidity ^0.8.17;
 
 import {YlideStorage} from "../storage/YlideStorage.sol";
-import {LibHex} from "../libraries/LibHex.sol";
-import {LibRingBufferIndex} from "../libraries/LibRingBufferIndex.sol";
 import {RegistryEntry} from "../storage/DiamondStorage.sol";
 
+import {LibHex} from "../libraries/LibHex.sol";
+import {LibRingBufferIndex} from "../libraries/LibRingBufferIndex.sol";
+
 contract RegistryFacet is YlideStorage {
-	function getPublicKey(address addr) public view returns (RegistryEntry memory) {
-		return s.addressToPublicKey[addr];
-	}
+	// ================================
+	// =========== Errors =============
+	// ================================
+	error TimestampFuture();
+	error TimestampOld();
+	error KeyVersionInvalid();
+	error IsNotBouncer();
+	error SignatureInvalid();
+	error ReferrerNotRegistered();
+	error UserExists();
+
+	// ================================
+	// ===== Internal methods =========
+	// ================================
 
 	function verifyMessage(
 		bytes32 publicKey,
@@ -18,12 +30,12 @@ contract RegistryFacet is YlideStorage {
 		bytes32 _s,
 		uint32 registrar,
 		uint64 timestampLock
-	) public view returns (address) {
+	) internal view returns (address) {
 		if (timestampLock > block.timestamp) {
-			revert("Timestamp lock is in future");
+			revert TimestampFuture();
 		}
 		if (block.timestamp - timestampLock > 5 * 60) {
-			revert("Timestamp lock is too old");
+			revert TimestampOld();
 		}
 		bytes memory prefix = "\x19Ethereum Signed Message:\n330";
 		// (121 + 2) + (14 + 64 + 1) + (13 + 8 + 1) + (12 + 64 + 1) + (13 + 16 + 0)
@@ -71,9 +83,26 @@ contract RegistryFacet is YlideStorage {
 		emit KeyAttached(addr, publicKey, keyVersion, registrar, index);
 	}
 
-	function attachPublicKey(uint256 publicKey, uint32 keyVersion, uint32 registrar) public {
-		require(keyVersion != 0, "Key version must be above zero");
+	// ================================
+	// ===== External methods =========
+	// ================================
 
+	// ================================
+	// =========== Getters ============
+	// ================================
+
+	function getPublicKey(address addr) external view returns (RegistryEntry memory) {
+		return s.addressToPublicKey[addr];
+	}
+
+	// ================================
+	// =========== Setters ============
+	// ================================
+
+	function attachPublicKey(uint256 publicKey, uint32 keyVersion, uint32 registrar) external {
+		if (keyVersion == 0) {
+			revert KeyVersionInvalid();
+		}
 		internalKeyAttach(msg.sender, publicKey, keyVersion, registrar);
 	}
 
@@ -90,22 +119,20 @@ contract RegistryFacet is YlideStorage {
 		bool payBonus
 	) external payable {
 		if (s.bouncers[msg.sender] != true) {
-			revert();
+			revert IsNotBouncer();
 		}
-		require(keyVersion != 0, "Key version must be above zero");
-		require(
-			verifyMessage(bytes32(publicKey), _v, _r, _s, registrar, timestampLock) == addr,
-			"Signature does not match the user"
-			"s address"
-		);
-		require(
-			referrer == address(0x0) || s.addressToPublicKey[referrer].keyVersion != 0,
-			"Referrer must be registered"
-		);
-		require(
-			addr != address(0x0) && s.addressToPublicKey[addr].keyVersion == 0,
-			"Only new user key can be assigned by admin"
-		);
+		if (keyVersion == 0) {
+			revert KeyVersionInvalid();
+		}
+		if (verifyMessage(bytes32(publicKey), _v, _r, _s, registrar, timestampLock) != addr) {
+			revert SignatureInvalid();
+		}
+		if (referrer != address(0) || s.addressToPublicKey[referrer].keyVersion == 0) {
+			revert ReferrerNotRegistered();
+		}
+		if (addr == address(0x0) && s.addressToPublicKey[addr].keyVersion != 0) {
+			revert UserExists();
+		}
 
 		internalKeyAttach(addr, publicKey, keyVersion, registrar);
 

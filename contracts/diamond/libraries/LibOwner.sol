@@ -5,6 +5,7 @@ import {DiamondStorage} from "../storage/DiamondStorage.sol";
 
 library LibOwner {
 	event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+	error MustBeContractOwner();
 
 	function setContractOwner(DiamondStorage storage s, address _newOwner) internal {
 		address previousOwner = s.contractOwner;
@@ -12,13 +13,13 @@ library LibOwner {
 		emit OwnershipTransferred(previousOwner, _newOwner);
 	}
 
-	function contractOwner(
-		DiamondStorage storage s
-	) internal view returns (address contractOwner_) {
-		contractOwner_ = s.contractOwner;
+	function contractOwner(DiamondStorage storage s) internal view returns (address) {
+		return s.contractOwner;
 	}
 
 	function enforceIsContractOwner(DiamondStorage storage s) internal view {
-		require(msg.sender == s.contractOwner, "LibDiamond: Must be contract owner");
+		if (msg.sender != s.contractOwner) {
+			revert MustBeContractOwner();
+		}
 	}
 }
