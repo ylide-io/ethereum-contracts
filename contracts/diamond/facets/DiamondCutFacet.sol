@@ -2,10 +2,8 @@
 pragma solidity ^0.8.17;
 
 import {YlideStorage} from "../storage/YlideStorage.sol";
-
 import {LibDiamond} from "../libraries/LibDiamond.sol";
 import {LibOwner} from "../libraries/LibOwner.sol";
-
 import {IDiamondCut} from "../interfaces/IDiamondCut.sol";
 
 // Remember to add the loupe functions from DiamondLoupeFacet to the diamond.

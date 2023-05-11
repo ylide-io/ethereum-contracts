@@ -2,13 +2,12 @@
 pragma solidity ^0.8.17;
 
 import {YlideStorage} from "./storage/YlideStorage.sol";
-import {LibOwner} from "./libraries/LibOwner.sol";
 import {LibDiamond} from "./libraries/LibDiamond.sol";
 import {IDiamondCut} from "./interfaces/IDiamondCut.sol";
 
 contract YlideDiamond is YlideStorage {
 	constructor(address _contractOwner, address _diamondCutFacet) payable {
-		LibOwner.setContractOwner(s, _contractOwner);
+		s.contractOwner = _contractOwner;
 
 		// Add the diamondCut external function from the diamondCutFacet
 		IDiamondCut.FacetCut[] memory cut = new IDiamondCut.FacetCut[](1);

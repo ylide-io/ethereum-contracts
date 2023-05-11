@@ -2,18 +2,19 @@
 pragma solidity ^0.8.17;
 
 import {YlideStorage} from "../storage/YlideStorage.sol";
-import {MailingFeed, BroadcastFeed} from "../storage/DiamondStorage.sol";
-
+import {MailingFeed, BroadcastFeed, RegistryEntry} from "../storage/DiamondStorage.sol";
 import {LibOwner} from "../libraries/LibOwner.sol";
+import {IERC173} from "../interfaces/IERC173.sol";
 
-contract ConfigFacet is YlideStorage {
+// Contains all getters for YlideStorage variables
+// and simple setters for all of them
+// including ownership of YlideDiamond
+contract ConfigFacet is YlideStorage, IERC173 {
 	// ================================
 	// =========== Errors =============
 	// ================================
 
 	error NotFeedOwner();
-	error FeedAlreadyExists();
-	error FeedExists();
 
 	// ================================
 	// ===== Internal methods =========
@@ -85,6 +86,34 @@ contract ConfigFacet is YlideStorage {
 
 	function broadcastIdToWriters(uint256 feedId, address writer) external view returns (bool) {
 		return s.broadcastIdToWriters[feedId][writer];
+	}
+
+	function feedIdToRecipientToMailIndex(
+		uint256 feedId,
+		uint256 recipient
+	) external view returns (uint256) {
+		return s.feedIdToRecipientToMailIndex[feedId][recipient];
+	}
+
+	function feedIdToRecipientMessagesCount(
+		uint256 feedId,
+		uint256 recipient
+	) external view returns (uint256) {
+		return s.feedIdToRecipientMessagesCount[feedId][recipient];
+	}
+
+	function recipientToMailingFeedJoinEventsIndex(
+		uint256 recipient
+	) external view returns (uint256) {
+		return s.recipientToMailingFeedJoinEventsIndex[recipient];
+	}
+
+	function addressToPublicKey(address addr) external view returns (RegistryEntry memory) {
+		return s.addressToPublicKey[addr];
+	}
+
+	function owner() external view override returns (address owner_) {
+		owner_ = s.contractOwner;
 	}
 
 	// ================================
@@ -181,48 +210,10 @@ contract ConfigFacet is YlideStorage {
 		emit BroadcastFeedBeneficiaryChanged(feedId, newBeneficiary);
 	}
 
-	function createMailingFeed(uint256 uniqueId) external payable returns (uint256) {
-		uint256 feedId = uint256(keccak256(abi.encodePacked(msg.sender, uint256(0), uniqueId)));
-
-		if (s.mailingFeeds[feedId].owner != address(0)) {
-			revert FeedAlreadyExists();
-		}
-
-		s.mailingFeeds[feedId].owner = msg.sender;
-		s.mailingFeeds[feedId].beneficiary = payable(msg.sender);
-
-		if (s.mailingFeedCreationPrice > 0) {
-			s.beneficiary.transfer(s.mailingFeedCreationPrice);
-		}
-
-		emit MailingFeedCreated(feedId, msg.sender);
-
-		return feedId;
-	}
-
-	function createBroadcastFeed(
-		uint256 uniqueId,
-		bool isPublic
-	) external payable returns (uint256) {
-		uint256 feedId = uint256(keccak256(abi.encodePacked(msg.sender, uint256(0), uniqueId)));
-
-		if (s.broadcastFeeds[feedId].owner != address(0)) {
-			revert FeedExists();
-		}
-
-		s.broadcastFeeds[feedId].owner = msg.sender;
-		s.broadcastFeeds[feedId].beneficiary = payable(msg.sender);
-		s.broadcastFeeds[feedId].isPublic = isPublic;
-		s.broadcastIdToWriters[feedId][msg.sender] = true;
-		s.broadcastFeeds[feedId].messagesIndex = 0;
-		s.broadcastFeeds[feedId].messagesCount = 0;
-
-		if (s.broadcastFeedCreationPrice > 0) {
-			s.beneficiary.transfer(s.broadcastFeedCreationPrice);
-		}
-
-		emit BroadcastFeedCreated(feedId, msg.sender);
-
-		return feedId;
+	function transferOwnership(address _newOwner) external override {
+		LibOwner.enforceIsContractOwner(s);
+		address previousOwner = s.contractOwner;
+		s.contractOwner = _newOwner;
+		emit OwnershipTransferred(previousOwner, _newOwner);
 	}
 }

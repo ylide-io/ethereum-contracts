@@ -3,7 +3,6 @@ pragma solidity ^0.8.17;
 
 import {YlideStorage} from "../storage/YlideStorage.sol";
 import {RegistryEntry} from "../storage/DiamondStorage.sol";
-
 import {LibHex} from "../libraries/LibHex.sol";
 import {LibRingBufferIndex} from "../libraries/LibRingBufferIndex.sol";
 
@@ -85,18 +84,6 @@ contract RegistryFacet is YlideStorage {
 
 	// ================================
 	// ===== External methods =========
-	// ================================
-
-	// ================================
-	// =========== Getters ============
-	// ================================
-
-	function addressToPublicKey(address addr) external view returns (RegistryEntry memory) {
-		return s.addressToPublicKey[addr];
-	}
-
-	// ================================
-	// =========== Setters ============
 	// ================================
 
 	function attachPublicKey(uint256 publicKey, uint32 keyVersion, uint32 registrar) external {

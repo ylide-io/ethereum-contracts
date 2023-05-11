@@ -2,7 +2,6 @@
 pragma solidity ^0.8.17;
 
 import {YlideStorage} from "../storage/YlideStorage.sol";
-
 import {LibRingBufferIndex} from "../libraries/LibRingBufferIndex.sol";
 
 contract MailerFacet is YlideStorage {
@@ -27,6 +26,7 @@ contract MailerFacet is YlideStorage {
 	error NumberLessThanFirstBlockNumber();
 	error NumberMoreThanFirstBlockNumberPlusBlockCountLock();
 	error FeedNotAllowed();
+	error FeedExists();
 
 	// ================================
 	// ===== Internal methods =========
@@ -168,34 +168,6 @@ contract MailerFacet is YlideStorage {
 	// ===== External methods =========
 	// ================================
 
-	// ================================
-	// =========== Getters ============
-	// ================================
-
-	function feedIdToRecipientToMailIndex(
-		uint256 feedId,
-		uint256 recipient
-	) external view returns (uint256) {
-		return s.feedIdToRecipientToMailIndex[feedId][recipient];
-	}
-
-	function feedIdToRecipientMessagesCount(
-		uint256 feedId,
-		uint256 recipient
-	) external view returns (uint256) {
-		return s.feedIdToRecipientMessagesCount[feedId][recipient];
-	}
-
-	function recipientToMailingFeedJoinEventsIndex(
-		uint256 recipient
-	) external view returns (uint256) {
-		return s.recipientToMailingFeedJoinEventsIndex[recipient];
-	}
-
-	// ================================
-	// =========== Setters ============
-	// ================================
-
 	function sendBulkMail(
 		uint256 feedId,
 		uint256 uniqueId,
@@ -321,5 +293,50 @@ contract MailerFacet is YlideStorage {
 		payOut(1, 0, 0);
 
 		return contentId;
+	}
+
+	function createMailingFeed(uint256 uniqueId) external payable returns (uint256) {
+		uint256 feedId = uint256(keccak256(abi.encodePacked(msg.sender, uint256(0), uniqueId)));
+
+		if (s.mailingFeeds[feedId].owner != address(0)) {
+			revert FeedExists();
+		}
+
+		s.mailingFeeds[feedId].owner = msg.sender;
+		s.mailingFeeds[feedId].beneficiary = payable(msg.sender);
+
+		if (s.mailingFeedCreationPrice > 0) {
+			s.beneficiary.transfer(s.mailingFeedCreationPrice);
+		}
+
+		emit MailingFeedCreated(feedId, msg.sender);
+
+		return feedId;
+	}
+
+	function createBroadcastFeed(
+		uint256 uniqueId,
+		bool isPublic
+	) external payable returns (uint256) {
+		uint256 feedId = uint256(keccak256(abi.encodePacked(msg.sender, uint256(0), uniqueId)));
+
+		if (s.broadcastFeeds[feedId].owner != address(0)) {
+			revert FeedExists();
+		}
+
+		s.broadcastFeeds[feedId].owner = msg.sender;
+		s.broadcastFeeds[feedId].beneficiary = payable(msg.sender);
+		s.broadcastFeeds[feedId].isPublic = isPublic;
+		s.broadcastIdToWriters[feedId][msg.sender] = true;
+		s.broadcastFeeds[feedId].messagesIndex = 0;
+		s.broadcastFeeds[feedId].messagesCount = 0;
+
+		if (s.broadcastFeedCreationPrice > 0) {
+			s.beneficiary.transfer(s.broadcastFeedCreationPrice);
+		}
+
+		emit BroadcastFeedCreated(feedId, msg.sender);
+
+		return feedId;
 	}
 }
