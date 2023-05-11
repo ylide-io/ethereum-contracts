@@ -89,10 +89,6 @@ describe('Diamond', () => {
 	});
 
 	it('should add mail recipients', async () => {
-		const configFacet = await ethers.getContractAt('ConfigFacet', diamondAddress);
-		const tx = await configFacet.connect(owner).createMailingFeed('123');
-		const receipt = await tx.wait();
-		const feedId = String(receipt.events?.[0].args?.[0] || 0);
 		const recKeySups = [
 			{ recipient: BigNumber.from(user2.address), key: '0x0102', supplement: '0x' },
 			{ recipient: BigNumber.from(owner.address), key: '0x010203', supplement: '0x' },
@@ -101,8 +97,7 @@ describe('Diamond', () => {
 
 		const currentBlock = await ethers.provider.getBlockNumber();
 		await mailerFacet.connect(user1).addMailRecipients(feedId, 123, recKeySups, currentBlock, 20, 200);
-		const mailEvents = await mailerFacet.queryFilter(mailerFacet.filters.MailPush(null, feedId));
-		console.log(mailEvents);
+		const mailEvents = await mailerFacet.queryFilter(mailerFacet.filters.MailPush(null, feedId), currentBlock + 1);
 		for (let i = 0; i < mailEvents.length; i++) {
 			expect(mailEvents[i].args.feedId).equal(feedId);
 			expect(mailEvents[i].args.sender).equal(user1.address);
