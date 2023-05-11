@@ -168,6 +168,34 @@ contract MailerFacet is YlideStorage {
 	// ===== External methods =========
 	// ================================
 
+	// ================================
+	// =========== Getters ============
+	// ================================
+
+	function feedIdToRecipientToMailIndex(
+		uint256 feedId,
+		uint256 recipient
+	) external view returns (uint256) {
+		return s.feedIdToRecipientToMailIndex[feedId][recipient];
+	}
+
+	function feedIdToRecipientMessagesCount(
+		uint256 feedId,
+		uint256 recipient
+	) external view returns (uint256) {
+		return s.feedIdToRecipientMessagesCount[feedId][recipient];
+	}
+
+	function recipientToMailingFeedJoinEventsIndex(
+		uint256 recipient
+	) external view returns (uint256) {
+		return s.recipientToMailingFeedJoinEventsIndex[recipient];
+	}
+
+	// ================================
+	// =========== Setters ============
+	// ================================
+
 	function sendBulkMail(
 		uint256 feedId,
 		uint256 uniqueId,

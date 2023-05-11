@@ -91,7 +91,7 @@ contract RegistryFacet is YlideStorage {
 	// =========== Getters ============
 	// ================================
 
-	function getPublicKey(address addr) external view returns (RegistryEntry memory) {
+	function addressToPublicKey(address addr) external view returns (RegistryEntry memory) {
 		return s.addressToPublicKey[addr];
 	}
 

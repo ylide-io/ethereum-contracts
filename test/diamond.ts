@@ -29,7 +29,7 @@ describe('Diamond', () => {
 		diamondAddress = diamond.address;
 
 		// deploy facets
-		const FacetNames = ['DiamondLoupeFacet', 'OwnershipFacet', 'ConfigFacet', 'MailerFacet', 'RegistryFacet'];
+		const FacetNames = ['DiamondLoupeFacet', 'OwnershipFacet', 'ConfigFacet', 'MockMailerFacet', 'RegistryFacet'];
 		const cut: FacetCut[] = [];
 		for (const FacetName of FacetNames) {
 			const Facet = await ethers.getContractFactory(FacetName);
@@ -46,13 +46,47 @@ describe('Diamond', () => {
 		await diamondCut.diamondCut(cut, ethers.constants.AddressZero, []);
 	});
 
+	it('should exchange facet', async () => {
+		const configFacet = await ethers.getContractAt('ConfigFacet', diamondAddress);
+		const mockMailerFacet = await ethers.getContractAt('MockMailerFacet', diamondAddress);
+		await mockMailerFacet.connect(user1).setNewcomerBonus(1);
+		expect(await mockMailerFacet.version()).equal(100);
+		expect(await configFacet.newcomerBonus()).equal(1);
+		const mailerFacet = await ethers
+			.getContractFactory('MailerFacet')
+			.then(f => f.deploy())
+			.then(c => c.deployed());
+		const diamondCut = await ethers.getContractAt('IDiamondCut', diamondAddress);
+		await diamondCut.diamondCut(
+			[
+				{
+					facetAddress: ethers.constants.AddressZero,
+					action: FacetCutAction.Remove,
+					functionSelectors: getSelectors(mockMailerFacet),
+				},
+				{
+					facetAddress: mailerFacet.address,
+					action: FacetCutAction.Add,
+					functionSelectors: getSelectors(mailerFacet),
+				},
+			],
+			ethers.constants.AddressZero,
+			[],
+		);
+		expect(await mockMailerFacet.version()).equal(9);
+		expect(await configFacet.newcomerBonus()).equal(1);
+		await configFacet.setBonuses(2, 3);
+		expect(await configFacet.newcomerBonus()).equal(2);
+		expect(await configFacet.referrerBonus()).equal(3);
+	});
+
 	it('should add key to registry', async () => {
 		const registryFacet = await ethers.getContractAt('RegistryFacet', diamondAddress);
 		const publicKey = BigNumber.from(ethers.utils.randomBytes(32));
 		const keyVersion = 1;
 		const registrar = 123;
 		await registryFacet.connect(user1).attachPublicKey(publicKey, keyVersion, registrar);
-		const registryInfo = await registryFacet.getPublicKey(user1.address);
+		const registryInfo = await registryFacet.addressToPublicKey(user1.address);
 		expect(registryInfo.publicKey).equal(publicKey);
 		expect(registryInfo.keyVersion).equal(keyVersion);
 		expect(registryInfo.registrar).equal(registrar);
@@ -63,7 +97,7 @@ describe('Diamond', () => {
 		const tx = await configFacet.connect(owner).createMailingFeed('768768768768121341');
 		const receipt = await tx.wait();
 		feedId = String(receipt.events?.[0].args?.[0] || 0);
-		const feed = await configFacet.getMailingFeed(feedId);
+		const feed = await configFacet.mailingFeeds(feedId);
 		expect(feed.owner).equal(owner.address);
 		expect(feed.beneficiary).equal(owner.address);
 		expect(feed.recipientFee).equal(0);

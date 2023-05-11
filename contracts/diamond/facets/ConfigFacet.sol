@@ -38,37 +38,83 @@ contract ConfigFacet is YlideStorage {
 	// ================================
 	// =========== Getters ============
 	// ================================
-	function getMailingFeedRecipientIndex(
-		uint256 feedId,
-		uint256 recipient
-	) external view returns (uint256) {
-		return s.feedIdToRecipientToMailIndex[feedId][recipient];
-	}
 
-	function getMailingFeedRecipientMessagesCount(
-		uint256 feedId,
-		uint256 recipient
-	) external view returns (uint256) {
-		return s.feedIdToRecipientMessagesCount[feedId][recipient];
-	}
-
-	function getMailingFeed(uint256 feedId) external view returns (MailingFeed memory) {
+	function mailingFeeds(uint256 feedId) external view returns (MailingFeed memory) {
 		return s.mailingFeeds[feedId];
 	}
 
-	function getBroadcastFeed(uint256 feedId) external view returns (BroadcastFeed memory) {
+	function broadcastFeeds(uint256 feedId) external view returns (BroadcastFeed memory) {
 		return s.broadcastFeeds[feedId];
 	}
 
-	function getRecipientToMailingFeedJoinEventsIndex(
-		uint256 recipient
-	) external view returns (uint256) {
-		return s.recipientToMailingFeedJoinEventsIndex[recipient];
+	function bouncers(address bouncer) external view returns (bool) {
+		return s.bouncers[bouncer];
+	}
+
+	function newcomerBonus() external view returns (uint256) {
+		return s.newcomerBonus;
+	}
+
+	function referrerBonus() external view returns (uint256) {
+		return s.referrerBonus;
+	}
+
+	function contentPartFee() external view returns (uint256) {
+		return s.contentPartFee;
+	}
+
+	function recipientFee() external view returns (uint256) {
+		return s.recipientFee;
+	}
+
+	function broadcastFee() external view returns (uint256) {
+		return s.broadcastFee;
+	}
+
+	function broadcastFeedCreationPrice() external view returns (uint256) {
+		return s.broadcastFeedCreationPrice;
+	}
+
+	function mailingFeedCreationPrice() external view returns (uint256) {
+		return s.mailingFeedCreationPrice;
+	}
+
+	function beneficiary() external view returns (address payable) {
+		return s.beneficiary;
+	}
+
+	function broadcastIdToWriters(uint256 feedId, address writer) external view returns (bool) {
+		return s.broadcastIdToWriters[feedId][writer];
 	}
 
 	// ================================
 	// =========== Setters ============
 	// ================================
+
+	function setFees(
+		uint256 _contentPartFee,
+		uint256 _recipientFee,
+		uint256 _broadcastFee
+	) external {
+		LibOwner.enforceIsContractOwner(s);
+		s.contentPartFee = _contentPartFee;
+		s.recipientFee = _recipientFee;
+		s.broadcastFee = _broadcastFee;
+	}
+
+	function setPrices(
+		uint256 _broadcastFeedCreationPrice,
+		uint256 _mailingFeedCreationPrice
+	) external {
+		LibOwner.enforceIsContractOwner(s);
+		s.broadcastFeedCreationPrice = _broadcastFeedCreationPrice;
+		s.mailingFeedCreationPrice = _mailingFeedCreationPrice;
+	}
+
+	function setBeneficiary(address payable _beneficiary) external {
+		LibOwner.enforceIsContractOwner(s);
+		s.beneficiary = _beneficiary;
+	}
 
 	function setBouncer(address newBouncer, bool val) external {
 		LibOwner.enforceIsContractOwner(s);
