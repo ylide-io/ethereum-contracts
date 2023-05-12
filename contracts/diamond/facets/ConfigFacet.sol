@@ -20,13 +20,13 @@ contract ConfigFacet is YlideStorage, IERC173 {
 	// ===== Internal methods =========
 	// ================================
 
-	function validateFeedOwner(uint256 feedId) internal view {
+	function _validateFeedOwner(uint256 feedId) internal view {
 		if (msg.sender != s.mailingFeeds[feedId].owner) {
 			revert NotFeedOwner();
 		}
 	}
 
-	function validateBroadCastFeedOwner(uint256 feedId) internal view {
+	function _validateBroadCastFeedOwner(uint256 feedId) internal view {
 		if (msg.sender != s.broadcastFeeds[feedId].owner) {
 			revert NotFeedOwner();
 		}
@@ -159,53 +159,53 @@ contract ConfigFacet is YlideStorage, IERC173 {
 	}
 
 	function setMailingFeedFees(uint256 feedId, uint256 _recipientFee) external {
-		validateFeedOwner(feedId);
+		_validateFeedOwner(feedId);
 		s.mailingFeeds[feedId].recipientFee = _recipientFee;
 	}
 
 	function setBroadcastFeedFees(uint256 feedId, uint256 _broadcastFee) external {
-		validateBroadCastFeedOwner(feedId);
+		_validateBroadCastFeedOwner(feedId);
 		s.broadcastFeeds[feedId].broadcastFee = _broadcastFee;
 	}
 
 	function transferMailingFeedOwnership(uint256 feedId, address newOwner) external {
-		validateFeedOwner(feedId);
+		_validateFeedOwner(feedId);
 		s.mailingFeeds[feedId].owner = newOwner;
 		emit MailingFeedOwnershipTransferred(feedId, newOwner);
 	}
 
 	function setMailingFeedBeneficiary(uint256 feedId, address payable newBeneficiary) external {
-		validateFeedOwner(feedId);
+		_validateFeedOwner(feedId);
 		s.mailingFeeds[feedId].beneficiary = newBeneficiary;
 		emit MailingFeedBeneficiaryChanged(feedId, newBeneficiary);
 	}
 
 	function changeBroadcastFeedPublicity(uint256 feedId, bool isPublic) external {
-		validateBroadCastFeedOwner(feedId);
+		_validateBroadCastFeedOwner(feedId);
 		s.broadcastFeeds[feedId].isPublic = isPublic;
 		emit BroadcastFeedPublicityChanged(feedId, isPublic);
 	}
 
 	function addBroadcastFeedWriter(uint256 feedId, address writer) external {
-		validateBroadCastFeedOwner(feedId);
+		_validateBroadCastFeedOwner(feedId);
 		s.broadcastIdToWriters[feedId][writer] = true;
 		emit BroadcastFeedWriterChange(feedId, writer, true);
 	}
 
 	function removeBroadcastFeedWriter(uint256 feedId, address writer) external {
-		validateBroadCastFeedOwner(feedId);
+		_validateBroadCastFeedOwner(feedId);
 		delete s.broadcastIdToWriters[feedId][writer];
 		emit BroadcastFeedWriterChange(feedId, writer, false);
 	}
 
 	function transferBroadcastFeedOwnership(uint256 feedId, address newOwner) external {
-		validateBroadCastFeedOwner(feedId);
+		_validateBroadCastFeedOwner(feedId);
 		s.broadcastFeeds[feedId].owner = newOwner;
 		emit BroadcastFeedOwnershipTransferred(feedId, newOwner);
 	}
 
 	function setBroadcastFeedBeneficiary(uint256 feedId, address payable newBeneficiary) external {
-		validateBroadCastFeedOwner(feedId);
+		_validateBroadCastFeedOwner(feedId);
 		s.broadcastFeeds[feedId].beneficiary = newBeneficiary;
 		emit BroadcastFeedBeneficiaryChanged(feedId, newBeneficiary);
 	}

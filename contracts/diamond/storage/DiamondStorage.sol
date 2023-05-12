@@ -28,7 +28,9 @@ struct MailingFeed {
 struct TokenInfo {
 	uint256 amount;
 	address token;
-	bool claimed;
+	address sender;
+	bool withdrawn;
+	uint256 stakeBlockedUntil;
 }
 
 struct FacetAddressAndPosition {
@@ -88,6 +90,5 @@ struct DiamondStorage {
 	mapping(address => mapping(address => uint256)) recipientToPaywallTokenToAmount;
 	mapping(address => mapping(address => bool)) recipientToWhitelistedSender;
 	mapping(uint256 => mapping(address => TokenInfo)) contentIdToRecipientToTokenInfo;
-	uint256 blockLock;
 	uint256 stakeLockUpPeriod;
 }
