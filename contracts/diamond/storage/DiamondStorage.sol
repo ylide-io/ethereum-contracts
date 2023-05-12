@@ -81,7 +81,7 @@ struct DiamondStorage {
 	uint256 broadcastFee;
 	uint256 broadcastFeedCreationPrice;
 	uint256 mailingFeedCreationPrice;
-	address payable beneficiary;
+	address payable ylideBeneficiary;
 	// Pay for attention specific
 	// tracking funds of beneficiaries of pay for attention (receiver interface, user referrer etc)
 	// TODO: rewrite to registrar
@@ -91,4 +91,8 @@ struct DiamondStorage {
 	mapping(address => mapping(address => bool)) recipientToWhitelistedSender;
 	mapping(uint256 => mapping(address => TokenInfo)) contentIdToRecipientToTokenInfo;
 	uint256 stakeLockUpPeriod;
+	// Percentages denominated in 1e2. 100% = 10000 wei || 0.27% = 27 wei
+	uint256 ylidePayCommissionPercentage;
+	uint256 referrerCommissionPercentage;
+	mapping(address => uint256) receiverInterfaceToCommissionPercentage;
 }

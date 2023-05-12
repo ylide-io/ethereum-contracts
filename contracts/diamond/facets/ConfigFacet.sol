@@ -80,8 +80,8 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		return s.mailingFeedCreationPrice;
 	}
 
-	function beneficiary() external view returns (address payable) {
-		return s.beneficiary;
+	function ylideBeneficiary() external view returns (address payable) {
+		return s.ylideBeneficiary;
 	}
 
 	function broadcastIdToWriters(uint256 feedId, address writer) external view returns (bool) {
@@ -140,9 +140,9 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		s.mailingFeedCreationPrice = _mailingFeedCreationPrice;
 	}
 
-	function setBeneficiary(address payable _beneficiary) external {
+	function setYlideBeneficiary(address payable _ylideBeneficiary) external {
 		LibOwner.enforceIsContractOwner(s);
-		s.beneficiary = _beneficiary;
+		s.ylideBeneficiary = _ylideBeneficiary;
 	}
 
 	function setBouncer(address newBouncer, bool val) external {

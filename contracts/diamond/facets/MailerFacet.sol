@@ -152,7 +152,7 @@ contract MailerFacet is YlideStorage {
 			s.broadcastFee *
 			broadcasts;
 		if (totalValue > 0) {
-			s.beneficiary.transfer(totalValue);
+			s.ylideBeneficiary.transfer(totalValue);
 		}
 	}
 
@@ -347,7 +347,7 @@ contract MailerFacet is YlideStorage {
 		s.mailingFeeds[feedId].beneficiary = payable(msg.sender);
 
 		if (s.mailingFeedCreationPrice > 0) {
-			s.beneficiary.transfer(s.mailingFeedCreationPrice);
+			s.ylideBeneficiary.transfer(s.mailingFeedCreationPrice);
 		}
 
 		emit MailingFeedCreated(feedId, msg.sender);
@@ -373,7 +373,7 @@ contract MailerFacet is YlideStorage {
 		s.broadcastFeeds[feedId].messagesCount = 0;
 
 		if (s.broadcastFeedCreationPrice > 0) {
-			s.beneficiary.transfer(s.broadcastFeedCreationPrice);
+			s.ylideBeneficiary.transfer(s.broadcastFeedCreationPrice);
 		}
 
 		emit BroadcastFeedCreated(feedId, msg.sender);
