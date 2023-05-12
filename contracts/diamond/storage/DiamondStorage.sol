@@ -25,6 +25,12 @@ struct MailingFeed {
 	uint256 recipientFee;
 }
 
+struct TokenInfo {
+	uint256 amount;
+	address token;
+	bool claimed;
+}
+
 struct FacetAddressAndPosition {
 	address facetAddress;
 	uint96 functionSelectorPosition; // position in facetFunctionSelectors.functionSelectors array
@@ -74,4 +80,14 @@ struct DiamondStorage {
 	uint256 broadcastFeedCreationPrice;
 	uint256 mailingFeedCreationPrice;
 	address payable beneficiary;
+	// Pay for attention specific
+	// tracking funds of beneficiaries of pay for attention (receiver interface, user referrer etc)
+	// TODO: rewrite to registrar
+	mapping(address => mapping(address => uint256)) addressToTokenToAmount;
+	mapping(address => address[]) recipientToPaywallTokens;
+	mapping(address => mapping(address => uint256)) recipientToPaywallTokenToAmount;
+	mapping(address => mapping(address => bool)) recipientToWhitelistedSender;
+	mapping(uint256 => mapping(address => TokenInfo)) contentIdToRecipientToTokenInfo;
+	uint256 blockLock;
+	uint256 stakeLockUpPeriod;
 }

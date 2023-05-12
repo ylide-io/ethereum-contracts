@@ -3,8 +3,12 @@ pragma solidity ^0.8.17;
 
 import {YlideStorage} from "../storage/YlideStorage.sol";
 import {LibRingBufferIndex} from "../libraries/LibRingBufferIndex.sol";
+import {TokenInfo} from "../storage/DiamondStorage.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract MailerFacet is YlideStorage {
+	using SafeERC20 for IERC20;
 	uint256 public constant version = 9;
 
 	// ================================
@@ -12,6 +16,7 @@ contract MailerFacet is YlideStorage {
 	// ================================
 	struct RecKeySup {
 		uint256 recipient;
+		address token;
 		bytes key;
 		// uint8 type - bytes data
 		// NONE: 0x
@@ -27,6 +32,7 @@ contract MailerFacet is YlideStorage {
 	error NumberMoreThanFirstBlockNumberPlusBlockCountLock();
 	error FeedNotAllowed();
 	error FeedExists();
+	error PayForAttentionFailed();
 
 	// ================================
 	// ===== Internal methods =========
@@ -138,7 +144,7 @@ contract MailerFacet is YlideStorage {
 
 	/* ------------- Payout helpers ---------------- */
 
-	function payOut(uint256 contentParts, uint256 recipients, uint256 broadcasts) internal virtual {
+	function payOut(uint256 contentParts, uint256 recipients, uint256 broadcasts) internal {
 		uint256 totalValue = s.contentPartFee *
 			contentParts +
 			s.recipientFee *
@@ -150,18 +156,42 @@ contract MailerFacet is YlideStorage {
 		}
 	}
 
-	function payOutMailingFeed(uint256 feedId, uint256 recipients) internal virtual {
+	function payOutMailingFeed(uint256 feedId, uint256 recipients) internal {
 		uint256 totalValue = s.mailingFeeds[feedId].recipientFee * recipients;
 		if (totalValue > 0) {
 			s.mailingFeeds[feedId].beneficiary.transfer(totalValue);
 		}
 	}
 
-	function payOutBroadcastFeed(uint256 feedId, uint256 broadcasts) internal virtual {
+	function payOutBroadcastFeed(uint256 feedId, uint256 broadcasts) internal {
 		uint256 totalValue = s.broadcastFeeds[feedId].broadcastFee * broadcasts;
 		if (totalValue > 0) {
 			s.broadcastFeeds[feedId].beneficiary.transfer(totalValue);
 		}
+	}
+
+	function payForAttention(
+		uint256 contentId,
+		RecKeySup calldata recKeySup
+	) internal returns (bool) {
+		address recipient = address(uint160(recKeySup.recipient));
+		if (
+			s.recipientToPaywallTokens[recipient].length == 0 ||
+			s.recipientToWhitelistedSender[recipient][msg.sender]
+		) {
+			return true;
+		}
+		uint256 amount = s.recipientToPaywallTokenToAmount[recipient][recKeySup.token];
+		if (amount == 0) {
+			return false;
+		}
+		s.contentIdToRecipientToTokenInfo[contentId][recipient] = TokenInfo({
+			amount: amount,
+			token: recKeySup.token,
+			claimed: false
+		});
+		IERC20(recKeySup.token).safeTransferFrom(msg.sender, address(this), amount);
+		return true;
 	}
 
 	// ================================
@@ -179,6 +209,9 @@ contract MailerFacet is YlideStorage {
 		emit MessageContent(contentId, msg.sender, 1, 0, content);
 
 		for (uint i = 0; i < args.length; i++) {
+			if (!payForAttention(contentId, args[i])) {
+				revert PayForAttentionFailed();
+			}
 			emitMailPush(feedId, msg.sender, contentId, args[i]);
 		}
 
@@ -203,7 +236,11 @@ contract MailerFacet is YlideStorage {
 			partsCount,
 			blockCountLock
 		);
+
 		for (uint i = 0; i < args.length; i++) {
+			if (!payForAttention(contentId, args[i])) {
+				revert PayForAttentionFailed();
+			}
 			emitMailPush(feedId, msg.sender, contentId, args[i]);
 		}
 

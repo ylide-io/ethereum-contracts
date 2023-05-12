@@ -107,8 +107,18 @@ describe('Diamond', () => {
 
 	it('should send bulk mail', async () => {
 		const recKeySups = [
-			{ recipient: BigNumber.from(user2.address), key: '0x0102', supplement: '0x' },
-			{ recipient: BigNumber.from(owner.address), key: '0x010203', supplement: '0x' },
+			{
+				recipient: BigNumber.from(user2.address),
+				token: ethers.constants.AddressZero,
+				key: '0x0102',
+				supplement: '0x',
+			},
+			{
+				recipient: BigNumber.from(owner.address),
+				token: ethers.constants.AddressZero,
+				key: '0x010203',
+				supplement: '0x',
+			},
 		];
 		const content = new Uint8Array([8, 7, 8, 7, 8, 7]);
 		const mailerFacet = await ethers.getContractAt('MailerFacet', diamondAddress);
@@ -126,8 +136,18 @@ describe('Diamond', () => {
 
 	it('should add mail recipients', async () => {
 		const recKeySups = [
-			{ recipient: BigNumber.from(user2.address), key: '0x0102', supplement: '0x' },
-			{ recipient: BigNumber.from(owner.address), key: '0x010203', supplement: '0x' },
+			{
+				recipient: BigNumber.from(user2.address),
+				token: ethers.constants.AddressZero,
+				key: '0x0102',
+				supplement: '0x',
+			},
+			{
+				recipient: BigNumber.from(owner.address),
+				token: ethers.constants.AddressZero,
+				key: '0x010203',
+				supplement: '0x',
+			},
 		];
 		const mailerFacet = await ethers.getContractAt('MailerFacet', diamondAddress);
 
