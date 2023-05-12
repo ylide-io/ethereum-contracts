@@ -27,7 +27,7 @@ contract RegistryFacet is YlideStorage {
 		uint8 _v,
 		bytes32 _r,
 		bytes32 _s,
-		uint32 registrar,
+		address registrar,
 		uint64 timestampLock
 	) internal view returns (address) {
 		if (timestampLock > block.timestamp) {
@@ -44,7 +44,7 @@ contract RegistryFacet is YlideStorage {
 			LibHex.uint256ToHex(publicKey),
 			"\n",
 			"Registrar: 0x",
-			LibHex.uint32ToHex(bytes4(registrar)),
+			LibHex.uint256ToHex(bytes32(uint256(uint160(registrar)))),
 			"\n",
 			"Chain ID: 0x",
 			LibHex.uint256ToHex(bytes32(block.chainid)),
@@ -61,7 +61,7 @@ contract RegistryFacet is YlideStorage {
 		address addr,
 		uint256 publicKey,
 		uint32 keyVersion,
-		uint32 registrar
+		address registrar
 	) internal {
 		uint256 index = 0;
 		if (s.addressToPublicKey[addr].keyVersion != 0) {
@@ -86,7 +86,7 @@ contract RegistryFacet is YlideStorage {
 	// ===== External methods =========
 	// ================================
 
-	function attachPublicKey(uint256 publicKey, uint32 keyVersion, uint32 registrar) external {
+	function attachPublicKey(uint256 publicKey, uint32 keyVersion, address registrar) external {
 		if (keyVersion == 0) {
 			revert KeyVersionInvalid();
 		}
@@ -100,7 +100,7 @@ contract RegistryFacet is YlideStorage {
 		address payable addr,
 		uint256 publicKey,
 		uint32 keyVersion,
-		uint32 registrar,
+		address registrar,
 		uint64 timestampLock,
 		address payable referrer,
 		bool payBonus

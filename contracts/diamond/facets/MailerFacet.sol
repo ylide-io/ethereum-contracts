@@ -187,14 +187,22 @@ contract MailerFacet is YlideStorage {
 		if (amount == 0) {
 			return false;
 		}
+		uint256 ylideCommission = (s.ylideCommissionPercentage * amount) / 100;
+		uint256 referrerCommission = (s.referrerCommissionPercentage * amount) / 100;
 		s.contentIdToRecipientToTokenInfo[contentId][recipient] = TokenInfo({
 			amount: amount,
 			token: recKeySup.token,
 			sender: msg.sender,
 			withdrawn: false,
-			stakeBlockedUntil: block.number + s.stakeLockUpPeriod
+			stakeBlockedUntil: block.number + s.stakeLockUpPeriod,
+			ylideCommission: ylideCommission,
+			referrerCommission: referrerCommission
 		});
-		IERC20(recKeySup.token).safeTransferFrom(msg.sender, address(this), amount);
+		IERC20(recKeySup.token).safeTransferFrom(
+			msg.sender,
+			address(this),
+			amount + ylideCommission + referrerCommission
+		);
 		return true;
 	}
 

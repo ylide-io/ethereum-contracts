@@ -13,6 +13,12 @@ contract StakeFacet is YlideStorage {
 	// ====== Arguments structs =======
 	// ================================
 
+	struct RecipientInterfaceArgs {
+		address interfaceAddress;
+		// Percentages denominated in 1e2. 100% = 10000 wei || 0.27% = 27 wei
+		uint256 interfaceCommission;
+	}
+
 	struct CancelArgs {
 		uint256 contentId;
 		address recipient;
@@ -34,6 +40,7 @@ contract StakeFacet is YlideStorage {
 
 	error NotSender();
 	error StakeLockUp();
+	error AlreadyWithdrawn();
 
 	// ================================
 	// ===== Internal methods =========
@@ -97,19 +104,22 @@ contract StakeFacet is YlideStorage {
 	}
 
 	// Called by recipient of message
-	function claim(uint256[] calldata contentIds) external {
+	function claim(uint256[] calldata contentIds, RecipientInterfaceArgs calldata args) external {
+		address registrar = s.addressToPublicKey[msg.sender].registrar;
 		for (uint256 i; i < contentIds.length; ) {
 			TokenInfo storage tokenInfo = s.contentIdToRecipientToTokenInfo[contentIds[i]][
 				msg.sender
 			];
 			if (tokenInfo.token == address(0) || tokenInfo.withdrawn) {
-				unchecked {
-					i++;
-				}
-				continue;
+				revert AlreadyWithdrawn();
 			}
 			tokenInfo.withdrawn = true;
-			IERC20(tokenInfo.token).safeTransfer(msg.sender, tokenInfo.amount);
+			uint256 interfaceCommission = (tokenInfo.amount * args.interfaceCommission) / 100;
+			uint256 recipientShare = tokenInfo.amount - interfaceCommission;
+			IERC20(tokenInfo.token).safeTransfer(msg.sender, recipientShare);
+			IERC20(tokenInfo.token).safeTransfer(args.interfaceAddress, interfaceCommission);
+			IERC20(tokenInfo.token).safeTransfer(s.ylideBeneficiary, tokenInfo.ylideCommission);
+			IERC20(tokenInfo.token).safeTransfer(registrar, tokenInfo.referrerCommission);
 			unchecked {
 				i++;
 			}
@@ -123,10 +133,7 @@ contract StakeFacet is YlideStorage {
 				args[i].recipient
 			];
 			if (tokenInfo.token == address(0) || tokenInfo.withdrawn) {
-				unchecked {
-					i++;
-				}
-				continue;
+				revert AlreadyWithdrawn();
 			}
 			if (tokenInfo.sender != msg.sender) {
 				revert NotSender();
@@ -135,7 +142,10 @@ contract StakeFacet is YlideStorage {
 				revert StakeLockUp();
 			}
 			tokenInfo.withdrawn = true;
-			IERC20(tokenInfo.token).safeTransfer(tokenInfo.sender, tokenInfo.amount);
+			IERC20(tokenInfo.token).safeTransfer(
+				tokenInfo.sender,
+				tokenInfo.amount + tokenInfo.ylideCommission + tokenInfo.referrerCommission
+			);
 			unchecked {
 				i++;
 			}

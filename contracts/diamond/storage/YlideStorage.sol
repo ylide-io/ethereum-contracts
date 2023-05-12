@@ -11,7 +11,7 @@ abstract contract YlideStorage {
 		address indexed addr,
 		uint256 publicKey,
 		uint32 keyVersion,
-		uint32 registrar,
+		address registrar,
 		uint256 previousEventsIndex
 	);
 

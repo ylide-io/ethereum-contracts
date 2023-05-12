@@ -7,7 +7,9 @@ struct RegistryEntry {
 	uint64 block;
 	uint64 timestamp;
 	uint32 keyVersion;
-	uint32 registrar;
+	// TODO: change to uint32 and ownership management or NFT holder
+	address registrar;
+	// uint32 registrar;
 }
 
 struct BroadcastFeed {
@@ -31,6 +33,8 @@ struct TokenInfo {
 	address sender;
 	bool withdrawn;
 	uint256 stakeBlockedUntil;
+	uint256 ylideCommission;
+	uint256 referrerCommission;
 }
 
 struct FacetAddressAndPosition {
@@ -92,7 +96,6 @@ struct DiamondStorage {
 	mapping(uint256 => mapping(address => TokenInfo)) contentIdToRecipientToTokenInfo;
 	uint256 stakeLockUpPeriod;
 	// Percentages denominated in 1e2. 100% = 10000 wei || 0.27% = 27 wei
-	uint256 ylidePayCommissionPercentage;
+	uint256 ylideCommissionPercentage;
 	uint256 referrerCommissionPercentage;
-	mapping(address => uint256) receiverInterfaceToCommissionPercentage;
 }
