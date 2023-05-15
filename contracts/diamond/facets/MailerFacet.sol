@@ -14,7 +14,7 @@ contract MailerFacet is YlideStorage {
 	// ================================
 	// ====== Arguments structs =======
 	// ================================
-	struct RecKeySup {
+	struct MailArgs {
 		uint256 recipient;
 		address token;
 		bytes key;
@@ -97,33 +97,33 @@ contract MailerFacet is YlideStorage {
 		uint256 feedId,
 		address sender,
 		uint256 contentId,
-		RecKeySup calldata recKeySup
+		MailArgs calldata mailArgs
 	) internal {
 		if (s.mailingFeeds[feedId].owner == address(0)) {
 			revert FeedDoesNotExist();
 		}
 		uint256 shrinkedBlock = block.number / 128;
-		if (s.feedIdToRecipientMessagesCount[feedId][recKeySup.recipient] == 0) {
+		if (s.feedIdToRecipientMessagesCount[feedId][mailArgs.recipient] == 0) {
 			uint256 currentMailingFeedJoinEventsIndex = s.recipientToMailingFeedJoinEventsIndex[
-				recKeySup.recipient
+				mailArgs.recipient
 			];
-			s.recipientToMailingFeedJoinEventsIndex[recKeySup.recipient] = LibRingBufferIndex
+			s.recipientToMailingFeedJoinEventsIndex[mailArgs.recipient] = LibRingBufferIndex
 				.storeBlockNumber(currentMailingFeedJoinEventsIndex, shrinkedBlock);
-			emit MailingFeedJoined(feedId, recKeySup.recipient, currentMailingFeedJoinEventsIndex);
+			emit MailingFeedJoined(feedId, mailArgs.recipient, currentMailingFeedJoinEventsIndex);
 		}
-		uint256 currentFeed = s.feedIdToRecipientToMailIndex[feedId][recKeySup.recipient];
-		s.feedIdToRecipientToMailIndex[feedId][recKeySup.recipient] = LibRingBufferIndex
+		uint256 currentFeed = s.feedIdToRecipientToMailIndex[feedId][mailArgs.recipient];
+		s.feedIdToRecipientToMailIndex[feedId][mailArgs.recipient] = LibRingBufferIndex
 			.storeBlockNumber(currentFeed, shrinkedBlock);
 		// write anything to map - 20k gas. think about it
-		s.feedIdToRecipientMessagesCount[feedId][recKeySup.recipient] += 1;
+		s.feedIdToRecipientMessagesCount[feedId][mailArgs.recipient] += 1;
 		emit MailPush(
-			recKeySup.recipient,
+			mailArgs.recipient,
 			feedId,
 			sender,
 			contentId,
 			currentFeed,
-			recKeySup.key,
-			recKeySup.supplement
+			mailArgs.key,
+			mailArgs.supplement
 		);
 	}
 
@@ -172,33 +172,40 @@ contract MailerFacet is YlideStorage {
 
 	function _payForAttention(
 		uint256 contentId,
-		RecKeySup calldata recKeySup
+		MailArgs calldata mailArgs
 	) internal returns (bool) {
-		address recipient = address(uint160(recKeySup.recipient));
+		address recipient = address(uint160(mailArgs.recipient));
 		// TODO: we should ensure that sending message to yourself is always free
 		// white list oneself while setting up the paywall?
-		if (
-			s.recipientToPaywallTokens[recipient].length == 0 ||
-			s.recipientToWhitelistedSender[recipient][msg.sender]
-		) {
+		uint256 amount;
+		if (s.recipientToWhitelistedSender[recipient][msg.sender]) {
 			return true;
 		}
-		uint256 amount = s.recipientToPaywallTokenToAmount[recipient][recKeySup.token];
+		if (s.recipientToPaywallTokens[recipient].length == 0) {
+			if (s.recipientToPaywallTokens[address(0)].length == 0) {
+				return true;
+			}
+			amount = s.recipientToPaywallTokenToAmount[address(0)][mailArgs.token];
+		} else {
+			amount = s.recipientToPaywallTokenToAmount[recipient][mailArgs.token];
+		}
 		if (amount == 0) {
 			return false;
 		}
-		uint256 ylideCommission = (s.ylideCommissionPercentage * amount) / 100;
-		uint256 referrerCommission = (s.referrerCommissionPercentage * amount) / 100;
+		uint256 ylideCommission = (s.ylideCommissionPercentage * amount) / 10000;
+		uint256 referrerCommission = (s.referrerToCommissionPercentage[
+			s.addressToPublicKey[msg.sender].registrar
+		] * amount) / 10000;
 		s.contentIdToRecipientToTokenInfo[contentId][recipient] = TokenInfo({
 			amount: amount,
-			token: recKeySup.token,
+			token: mailArgs.token,
 			sender: msg.sender,
 			withdrawn: false,
-			stakeBlockedUntil: block.number + s.stakeLockUpPeriod,
+			stakeBlockedUntil: block.timestamp + s.stakeLockUpPeriod,
 			ylideCommission: ylideCommission,
 			referrerCommission: referrerCommission
 		});
-		IERC20(recKeySup.token).safeTransferFrom(
+		IERC20(mailArgs.token).safeTransferFrom(
 			msg.sender,
 			address(this),
 			amount + ylideCommission + referrerCommission
@@ -213,7 +220,7 @@ contract MailerFacet is YlideStorage {
 	function sendBulkMail(
 		uint256 feedId,
 		uint256 uniqueId,
-		RecKeySup[] calldata args,
+		MailArgs[] calldata args,
 		bytes calldata content
 	) external payable returns (uint256) {
 		uint256 contentId = _buildContentId(msg.sender, uniqueId, block.number, 1, 0);
@@ -236,7 +243,7 @@ contract MailerFacet is YlideStorage {
 	function addMailRecipients(
 		uint256 feedId,
 		uint256 uniqueId,
-		RecKeySup[] calldata args,
+		MailArgs[] calldata args,
 		uint256 firstBlockNumber,
 		uint16 partsCount,
 		uint16 blockCountLock

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 import {YlideStorage} from "../storage/YlideStorage.sol";
-import {MailingFeed, BroadcastFeed, RegistryEntry} from "../storage/DiamondStorage.sol";
+import {MailingFeed, BroadcastFeed, RegistryEntry, TokenInfo} from "../storage/DiamondStorage.sol";
 import {LibOwner} from "../libraries/LibOwner.sol";
 import {IERC173} from "../interfaces/IERC173.sol";
 
@@ -10,6 +10,18 @@ import {IERC173} from "../interfaces/IERC173.sol";
 // and simple setters for all of them
 // including ownership of YlideDiamond
 contract ConfigFacet is YlideStorage, IERC173 {
+	// ================================
+	// ====== Arguments structs =======
+	// ================================
+	struct PayWallArgs {
+		address token;
+		uint256 amount;
+	}
+
+	struct WhitelistArgs {
+		address sender;
+		bool status;
+	}
 	// ================================
 	// =========== Errors =============
 	// ================================
@@ -29,6 +41,43 @@ contract ConfigFacet is YlideStorage, IERC173 {
 	function _validateBroadCastFeedOwner(uint256 feedId) internal view {
 		if (msg.sender != s.broadcastFeeds[feedId].owner) {
 			revert NotFeedOwner();
+		}
+	}
+
+	function _removeToken(address token, address[] storage tokens) internal {
+		for (uint256 i; i < tokens.length; ) {
+			if (tokens[i] == token) {
+				tokens[i] = tokens[tokens.length - 1];
+				tokens.pop();
+				return;
+			}
+			unchecked {
+				i++;
+			}
+		}
+	}
+
+	function _setPaywall(address recipient, PayWallArgs[] calldata args) internal {
+		for (uint256 i; i < args.length; ) {
+			bool exists = s.recipientToPaywallTokenToAmount[recipient][args[i].token] > 0;
+			s.recipientToPaywallTokenToAmount[recipient][args[i].token] = args[i].amount;
+			if (args[i].amount > 0 && !exists) {
+				s.recipientToPaywallTokens[recipient].push(args[i].token);
+			} else if (args[i].amount == 0 && exists) {
+				_removeToken(args[i].token, s.recipientToPaywallTokens[recipient]);
+			}
+			unchecked {
+				i++;
+			}
+		}
+	}
+
+	function _whitelistSenders(WhitelistArgs[] calldata args) internal {
+		for (uint256 i; i < args.length; ) {
+			s.recipientToWhitelistedSender[msg.sender][args[i].sender] = args[i].status;
+			unchecked {
+				i++;
+			}
 		}
 	}
 
@@ -114,6 +163,47 @@ contract ConfigFacet is YlideStorage, IERC173 {
 
 	function owner() external view override returns (address owner_) {
 		owner_ = s.contractOwner;
+	}
+
+	function addressToTokenToAmount(address addr, address token) external view returns (uint256) {
+		return s.addressToTokenToAmount[addr][token];
+	}
+
+	function recipientToPaywallTokens(address recipient) external view returns (address[] memory) {
+		return s.recipientToPaywallTokens[recipient];
+	}
+
+	function recipientToPaywallTokenToAmount(
+		address recipient,
+		address token
+	) external view returns (uint256) {
+		return s.recipientToPaywallTokenToAmount[recipient][token];
+	}
+
+	function recipientToWhitelistedSender(
+		address recipient,
+		address sender
+	) external view returns (bool) {
+		return s.recipientToWhitelistedSender[recipient][sender];
+	}
+
+	function contentIdToRecipientToTokenInfo(
+		uint256 contentId,
+		address recipient
+	) external view returns (TokenInfo memory) {
+		return s.contentIdToRecipientToTokenInfo[contentId][recipient];
+	}
+
+	function stakeLockUpPeriod() external view returns (uint256) {
+		return s.stakeLockUpPeriod;
+	}
+
+	function ylideCommissionPercentage() external view returns (uint256) {
+		return s.ylideCommissionPercentage;
+	}
+
+	function referrerToCommissionPercentage(address referrer) external view returns (uint256) {
+		return s.referrerToCommissionPercentage[referrer];
 	}
 
 	// ================================
@@ -215,5 +305,40 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		address previousOwner = s.contractOwner;
 		s.contractOwner = _newOwner;
 		emit OwnershipTransferred(previousOwner, _newOwner);
+	}
+
+	function setStakeLockUpPeriod(uint256 _stakeLockUpPeriod) external {
+		LibOwner.enforceIsContractOwner(s);
+		s.stakeLockUpPeriod = _stakeLockUpPeriod;
+	}
+
+	function setYlideCommissionPercentage(uint256 _ylideCommissionPercentage) external {
+		LibOwner.enforceIsContractOwner(s);
+		s.ylideCommissionPercentage = _ylideCommissionPercentage;
+	}
+
+	function setReferrerToCommissionPercentage(uint256 commissionPercentage) external {
+		s.referrerToCommissionPercentage[msg.sender] = commissionPercentage;
+	}
+
+	function setPaywall(PayWallArgs[] calldata payWallArgs) external {
+		_setPaywall(msg.sender, payWallArgs);
+	}
+
+	function whitelistSenders(WhitelistArgs[] calldata whitelistArgs) external {
+		_whitelistSenders(whitelistArgs);
+	}
+
+	function setPayWallAndWhiteListSenders(
+		PayWallArgs[] calldata payWallArgs,
+		WhitelistArgs[] calldata whitelistArgs
+	) external {
+		_setPaywall(msg.sender, payWallArgs);
+		_whitelistSenders(whitelistArgs);
+	}
+
+	function setPaywallDefault(PayWallArgs[] calldata payWallArgs) external {
+		LibOwner.enforceIsContractOwner(s);
+		_setPaywall(address(0), payWallArgs);
 	}
 }

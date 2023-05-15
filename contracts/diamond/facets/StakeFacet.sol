@@ -24,106 +24,57 @@ contract StakeFacet is YlideStorage {
 		address recipient;
 	}
 
-	struct PayWallArgs {
-		address token;
-		uint256 amount;
-	}
-
-	struct WhitelistArgs {
-		address recipient;
-		bool status;
-	}
-
 	// ================================
 	// =========== Errors =============
 	// ================================
 
 	error NotSender();
 	error StakeLockUp();
-	error AlreadyWithdrawn();
-
-	// ================================
-	// ===== Internal methods =========
-	// ================================
-
-	function _removeToken(address token, address[] storage tokens) internal {
-		for (uint256 i; i < tokens.length; ) {
-			if (tokens[i] == token) {
-				tokens[i] = tokens[tokens.length - 1];
-				tokens.pop();
-				return;
-			}
-			unchecked {
-				i++;
-			}
-		}
-	}
-
-	function _setPaywall(PayWallArgs[] calldata args) internal {
-		for (uint256 i; i < args.length; ) {
-			bool exists = s.recipientToPaywallTokenToAmount[msg.sender][args[i].token] > 0;
-			s.recipientToPaywallTokenToAmount[msg.sender][args[i].token] = args[i].amount;
-			if (args[i].amount > 0 && !exists) {
-				s.recipientToPaywallTokens[msg.sender].push(args[i].token);
-			} else if (args[i].amount == 0 && exists) {
-				_removeToken(args[i].token, s.recipientToPaywallTokens[msg.sender]);
-			}
-			unchecked {
-				i++;
-			}
-		}
-	}
-
-	function _whitelistSenders(WhitelistArgs[] calldata args) internal {
-		for (uint256 i; i < args.length; ) {
-			s.recipientToWhitelistedSender[msg.sender][args[i].recipient] = args[i].status;
-			unchecked {
-				i++;
-			}
-		}
-	}
+	error NothingToWithdraw();
+	error NoRegistrar();
 
 	// ================================
 	// ===== External methods =========
 	// ================================
 
-	function setPaywall(PayWallArgs[] calldata payWallArgs) external {
-		_setPaywall(payWallArgs);
-	}
-
-	function whitelistSenders(WhitelistArgs[] calldata whitelistArgs) external {
-		_whitelistSenders(whitelistArgs);
-	}
-
-	function setPayWallAndWhiteListSenders(
-		PayWallArgs[] calldata payWallArgs,
-		WhitelistArgs[] calldata whitelistArgs
-	) external {
-		_setPaywall(payWallArgs);
-		_whitelistSenders(whitelistArgs);
-	}
-
 	// Called by recipient of message
 	function claim(uint256[] calldata contentIds, RecipientInterfaceArgs calldata args) external {
 		address registrar = s.addressToPublicKey[msg.sender].registrar;
+		if (registrar == address(0)) {
+			revert NoRegistrar();
+		}
 		for (uint256 i; i < contentIds.length; ) {
 			TokenInfo storage tokenInfo = s.contentIdToRecipientToTokenInfo[contentIds[i]][
 				msg.sender
 			];
 			if (tokenInfo.token == address(0) || tokenInfo.withdrawn) {
-				revert AlreadyWithdrawn();
+				revert NothingToWithdraw();
 			}
-			tokenInfo.withdrawn = true;
-			uint256 interfaceCommission = (tokenInfo.amount * args.interfaceCommission) / 100;
+			uint256 interfaceCommission = (tokenInfo.amount * args.interfaceCommission) / 10000;
 			uint256 recipientShare = tokenInfo.amount - interfaceCommission;
+
+			tokenInfo.withdrawn = true;
+			s.addressToTokenToAmount[args.interfaceAddress][tokenInfo.token] += interfaceCommission;
+
+			s.addressToTokenToAmount[s.ylideBeneficiary][tokenInfo.token] += tokenInfo
+				.ylideCommission;
+			s.addressToTokenToAmount[registrar][tokenInfo.token] += tokenInfo.referrerCommission;
+
 			IERC20(tokenInfo.token).safeTransfer(msg.sender, recipientShare);
-			IERC20(tokenInfo.token).safeTransfer(args.interfaceAddress, interfaceCommission);
-			IERC20(tokenInfo.token).safeTransfer(s.ylideBeneficiary, tokenInfo.ylideCommission);
-			IERC20(tokenInfo.token).safeTransfer(registrar, tokenInfo.referrerCommission);
 			unchecked {
 				i++;
 			}
 		}
+	}
+
+	// Called by ylide || registrar || recipient interface
+	function claim(address token) external {
+		uint256 amount = s.addressToTokenToAmount[msg.sender][token];
+		if (amount == 0) {
+			revert NothingToWithdraw();
+		}
+		s.addressToTokenToAmount[msg.sender][token] = 0;
+		IERC20(token).safeTransfer(msg.sender, amount);
 	}
 
 	// called by sender of message
@@ -133,12 +84,12 @@ contract StakeFacet is YlideStorage {
 				args[i].recipient
 			];
 			if (tokenInfo.token == address(0) || tokenInfo.withdrawn) {
-				revert AlreadyWithdrawn();
+				revert NothingToWithdraw();
 			}
 			if (tokenInfo.sender != msg.sender) {
 				revert NotSender();
 			}
-			if (tokenInfo.stakeBlockedUntil <= block.number) {
+			if (tokenInfo.stakeBlockedUntil >= block.timestamp) {
 				revert StakeLockUp();
 			}
 			tokenInfo.withdrawn = true;

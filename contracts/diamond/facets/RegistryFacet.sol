@@ -17,6 +17,7 @@ contract RegistryFacet is YlideStorage {
 	error SignatureInvalid();
 	error ReferrerNotRegistered();
 	error UserExists();
+	error NoRegistrar();
 
 	// ================================
 	// ===== Internal methods =========
@@ -89,6 +90,9 @@ contract RegistryFacet is YlideStorage {
 	function attachPublicKey(uint256 publicKey, uint32 keyVersion, address registrar) external {
 		if (keyVersion == 0) {
 			revert KeyVersionInvalid();
+		}
+		if (registrar == address(0)) {
+			revert NoRegistrar();
 		}
 		internalKeyAttach(msg.sender, publicKey, keyVersion, registrar);
 	}

@@ -3,20 +3,27 @@ import { expect } from 'chai';
 import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
 import { FacetCut, FacetCutAction } from '../scripts/types';
-import { getSelectors } from '../scripts/utils';
+import { getSelectors, mine } from '../scripts/utils';
+import { MockERC20 } from '../typechain-types';
 
 describe('Diamond', () => {
 	let owner: SignerWithAddress;
 	let user1: SignerWithAddress;
 	let user2: SignerWithAddress;
+	let referrer: SignerWithAddress;
+	let referrerInterface: SignerWithAddress;
+	let erc20: MockERC20;
+	let erc20_2: MockERC20;
 	let diamondAddress: string;
 	let feedId: string;
 
 	before(async () => {
-		[owner, user1, user2] = await ethers.getSigners();
+		[owner, user1, user2, referrer, referrerInterface] = await ethers.getSigners();
 	});
 
 	it('should deploy diamond and facets', async () => {
+		erc20 = await ethers.getContractFactory('MockERC20', owner).then(f => f.deploy('mock', 'token'));
+		erc20_2 = await ethers.getContractFactory('MockERC20', owner).then(f => f.deploy('mock', 'token'));
 		// deploy DiamondCutFacet
 		const DiamondCutFacet = await ethers.getContractFactory('DiamondCutFacet', owner);
 		const diamondCutFacet = await DiamondCutFacet.deploy();
@@ -29,7 +36,7 @@ describe('Diamond', () => {
 		diamondAddress = diamond.address;
 
 		// deploy facets
-		const FacetNames = ['DiamondLoupeFacet', 'ConfigFacet', 'MockMailerFacet', 'RegistryFacet'];
+		const FacetNames = ['DiamondLoupeFacet', 'ConfigFacet', 'MockMailerFacet', 'RegistryFacet', 'StakeFacet'];
 		const cut: FacetCut[] = [];
 		for (const FacetName of FacetNames) {
 			const Facet = await ethers.getContractFactory(FacetName);
@@ -85,8 +92,9 @@ describe('Diamond', () => {
 		const registryFacet = await ethers.getContractAt('RegistryFacet', diamondAddress);
 		const publicKey = BigNumber.from(ethers.utils.randomBytes(32));
 		const keyVersion = 1;
-		const registrar = 123;
+		const registrar = referrer.address;
 		await registryFacet.connect(user1).attachPublicKey(publicKey, keyVersion, registrar);
+		await registryFacet.connect(user2).attachPublicKey(publicKey, keyVersion, registrar);
 		const registryInfo = await configFacet.addressToPublicKey(user1.address);
 		expect(registryInfo.publicKey).equal(publicKey);
 		expect(registryInfo.keyVersion).equal(keyVersion);
@@ -161,5 +169,431 @@ describe('Diamond', () => {
 			expect(mailEvents[i].args.key).equal(recKeySups[i].key);
 			expect(mailEvents[i].args.supplement).equal(recKeySups[i].supplement);
 		}
+	});
+
+	it('should manage pay wall', async () => {
+		const configFacet = await ethers.getContractAt('ConfigFacet', diamondAddress);
+		await configFacet.connect(user2).setPaywall([
+			{ token: user2.address, amount: 1 },
+			{ token: erc20.address, amount: 999 },
+			{ token: owner.address, amount: 2 },
+		]);
+
+		expect(await configFacet.recipientToPaywallTokenToAmount(user2.address, user2.address)).equal(1);
+		expect(await configFacet.recipientToPaywallTokenToAmount(user2.address, erc20.address)).equal(999);
+		expect(await configFacet.recipientToPaywallTokenToAmount(user2.address, owner.address)).equal(2);
+		expect(await configFacet.recipientToPaywallTokens(user2.address)).deep.equal([
+			user2.address,
+			erc20.address,
+			owner.address,
+		]);
+
+		await configFacet.connect(user2).setPaywall([
+			{ token: user2.address, amount: 0 },
+			{ token: owner.address, amount: 3 },
+		]);
+
+		expect(await configFacet.recipientToPaywallTokenToAmount(user2.address, user2.address)).equal(0);
+		expect(await configFacet.recipientToPaywallTokenToAmount(user2.address, erc20.address)).equal(999);
+		expect(await configFacet.recipientToPaywallTokenToAmount(user2.address, owner.address)).equal(3);
+		expect(await configFacet.recipientToPaywallTokens(user2.address)).deep.equal([owner.address, erc20.address]);
+
+		await configFacet.connect(user2).setPaywall([
+			{ token: erc20.address, amount: 1000 },
+			{ token: owner.address, amount: 0 },
+			{ token: erc20_2.address, amount: 2000 },
+		]);
+
+		expect(await configFacet.recipientToPaywallTokenToAmount(user2.address, user2.address)).equal(0);
+		expect(await configFacet.recipientToPaywallTokenToAmount(user2.address, erc20.address)).equal(1000);
+		expect(await configFacet.recipientToPaywallTokenToAmount(user2.address, owner.address)).equal(0);
+		expect(await configFacet.recipientToPaywallTokenToAmount(user2.address, erc20_2.address)).equal(2000);
+		expect(await configFacet.recipientToPaywallTokens(user2.address)).deep.equal([erc20.address, erc20_2.address]);
+	});
+
+	it('should correctly set fees for pay for attention', async () => {
+		const configFacet = await ethers.getContractAt('ConfigFacet', diamondAddress);
+		await configFacet.connect(owner).setStakeLockUpPeriod(100);
+		// 4% ylide commission
+		await configFacet.connect(owner).setYlideCommissionPercentage(400);
+		// 6% referrer commission
+		await configFacet.connect(referrer).setReferrerToCommissionPercentage(600);
+
+		expect(await configFacet.stakeLockUpPeriod()).equal(100);
+		expect(await configFacet.ylideCommissionPercentage()).equal(400);
+		expect(await configFacet.referrerToCommissionPercentage(referrer.address)).equal(600);
+	});
+
+	it('should send mail with pay for attention + cancel by sender', async () => {
+		const configFacet = await ethers.getContractAt('ConfigFacet', diamondAddress);
+		const stakeFacet = await ethers.getContractAt('StakeFacet', diamondAddress);
+		const mailerFacet = await ethers.getContractAt('MailerFacet', diamondAddress);
+
+		await erc20.connect(user1).mint(1100);
+		await erc20.connect(user1).approve(diamondAddress, 1100);
+		expect(await erc20.balanceOf(user2.address)).equal(0);
+		expect(await erc20.balanceOf(user1.address)).equal(1100);
+		const recKeySups = [
+			{
+				recipient: BigNumber.from(user2.address),
+				token: erc20.address,
+				key: '0x0102',
+				supplement: '0x',
+			},
+			{
+				recipient: BigNumber.from(owner.address),
+				token: ethers.constants.AddressZero,
+				key: '0x010203',
+				supplement: '0x',
+			},
+		];
+		const content = new Uint8Array([8, 7, 8, 7, 8, 7]);
+		await mailerFacet.connect(user1).sendBulkMail(feedId, 123, recKeySups, content);
+		expect(await erc20.balanceOf(user2.address)).equal(0);
+		expect(await erc20.balanceOf(user1.address)).equal(0);
+
+		const currentBlock = await ethers.provider.getBlockNumber();
+		const mailEvents = await mailerFacet.queryFilter(mailerFacet.filters.MailPush(null, feedId), currentBlock + 1);
+		let contentId = BigNumber.from(0);
+		for (let i = 0; i < mailEvents.length; i++) {
+			expect(mailEvents[i].args.feedId).equal(feedId);
+			expect(mailEvents[i].args.sender).equal(user1.address);
+			expect(mailEvents[i].args.recipient).equal(recKeySups[i].recipient);
+			expect(mailEvents[i].args.key).equal(recKeySups[i].key);
+			expect(mailEvents[i].args.supplement).equal(recKeySups[i].supplement);
+			if (mailEvents[i].args.recipient.eq(BigNumber.from(user2.address))) {
+				contentId = mailEvents[i].args.contentId;
+			}
+		}
+
+		const timestamp = await ethers.provider.getBlock(currentBlock).then(block => block.timestamp);
+
+		const lockupPeriod = await configFacet.stakeLockUpPeriod();
+
+		const stakeInfo = await configFacet.contentIdToRecipientToTokenInfo(contentId, user2.address);
+		expect(stakeInfo.amount).equal(1000);
+		expect(stakeInfo.token).equal(erc20.address);
+		expect(stakeInfo.withdrawn).equal(false);
+		expect(stakeInfo.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
+		expect(stakeInfo.ylideCommission).equal(40);
+		expect(stakeInfo.referrerCommission).equal(60);
+
+		await expect(
+			stakeFacet.connect(user1).cancel([{ contentId: contentId, recipient: owner.address }]),
+		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
+		await expect(
+			stakeFacet.connect(owner).cancel([{ contentId: contentId, recipient: user2.address }]),
+		).to.be.revertedWithCustomError(stakeFacet, 'NotSender');
+		await expect(
+			stakeFacet.connect(user1).cancel([{ contentId: contentId, recipient: user2.address }]),
+		).to.be.revertedWithCustomError(stakeFacet, 'StakeLockUp');
+
+		await mine(lockupPeriod.add(1).toNumber());
+
+		await stakeFacet.connect(user1).cancel([{ contentId: contentId, recipient: user2.address }]);
+		await expect(
+			stakeFacet.connect(user1).cancel([{ contentId: contentId, recipient: user2.address }]),
+		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
+		expect(await erc20.balanceOf(user1.address)).equal(1100);
+		expect(await erc20.balanceOf(user2.address)).equal(0);
+		expect(await erc20.balanceOf(diamondAddress)).equal(0);
+
+		const stakeInfoAfter = await configFacet.contentIdToRecipientToTokenInfo(contentId, user2.address);
+		expect(stakeInfoAfter.amount).equal(1000);
+		expect(stakeInfoAfter.token).equal(erc20.address);
+		expect(stakeInfoAfter.withdrawn).equal(true);
+		expect(stakeInfoAfter.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
+		expect(stakeInfoAfter.ylideCommission).equal(40);
+		expect(stakeInfoAfter.referrerCommission).equal(60);
+	});
+
+	it('should send bulk mail with pay for attention (default = 0) + claim', async () => {
+		const configFacet = await ethers.getContractAt('ConfigFacet', diamondAddress);
+		const stakeFacet = await ethers.getContractAt('StakeFacet', diamondAddress);
+		const mailerFacet = await ethers.getContractAt('MailerFacet', diamondAddress);
+
+		await erc20.connect(user1).approve(diamondAddress, 1100);
+		expect(await erc20.balanceOf(user2.address)).equal(0);
+		expect(await erc20.balanceOf(user1.address)).equal(1100);
+		const recKeySups = [
+			{
+				recipient: BigNumber.from(user2.address),
+				token: erc20.address,
+				key: '0x0102',
+				supplement: '0x',
+			},
+			{
+				recipient: BigNumber.from(owner.address),
+				token: ethers.constants.AddressZero,
+				key: '0x010203',
+				supplement: '0x',
+			},
+		];
+		const content = new Uint8Array([8, 7, 8, 7, 8, 7]);
+		await mailerFacet.connect(user1).sendBulkMail(feedId, 123, recKeySups, content);
+		expect(await erc20.balanceOf(user2.address)).equal(0);
+		expect(await erc20.balanceOf(user1.address)).equal(0);
+
+		const currentBlock = await ethers.provider.getBlockNumber();
+		const mailEvents = await mailerFacet.queryFilter(mailerFacet.filters.MailPush(null, feedId), currentBlock + 1);
+		let contentId = BigNumber.from(0);
+		for (let i = 0; i < mailEvents.length; i++) {
+			expect(mailEvents[i].args.feedId).equal(feedId);
+			expect(mailEvents[i].args.sender).equal(user1.address);
+			expect(mailEvents[i].args.recipient).equal(recKeySups[i].recipient);
+			expect(mailEvents[i].args.key).equal(recKeySups[i].key);
+			expect(mailEvents[i].args.supplement).equal(recKeySups[i].supplement);
+			if (mailEvents[i].args.recipient.eq(BigNumber.from(user2.address))) {
+				contentId = mailEvents[i].args.contentId;
+			}
+		}
+
+		const timestamp = await ethers.provider.getBlock(currentBlock).then(block => block.timestamp);
+
+		const lockupPeriod = await configFacet.stakeLockUpPeriod();
+
+		const stakeInfo = await configFacet.contentIdToRecipientToTokenInfo(contentId, user2.address);
+		expect(stakeInfo.amount).equal(1000);
+		expect(stakeInfo.token).equal(erc20.address);
+		expect(stakeInfo.withdrawn).equal(false);
+		expect(stakeInfo.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
+		expect(stakeInfo.ylideCommission).equal(40);
+		expect(stakeInfo.referrerCommission).equal(60);
+
+		await expect(
+			stakeFacet.connect(owner)['claim(uint256[],(address,uint256))']([contentId], {
+				interfaceAddress: referrerInterface.address,
+				// 40% interface commission
+				interfaceCommission: 4000,
+			}),
+		).to.be.revertedWithCustomError(stakeFacet, 'NoRegistrar');
+
+		await expect(
+			stakeFacet.connect(user2)['claim(uint256[],(address,uint256))']([contentId.add(1)], {
+				interfaceAddress: referrerInterface.address,
+				// 40% interface commission
+				interfaceCommission: 4000,
+			}),
+		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
+
+		await stakeFacet.connect(user2)['claim(uint256[],(address,uint256))']([contentId], {
+			interfaceAddress: referrerInterface.address,
+			// 40% interface commission
+			interfaceCommission: 4000,
+		});
+
+		await expect(
+			stakeFacet.connect(user2)['claim(uint256[],(address,uint256))']([contentId], {
+				interfaceAddress: referrerInterface.address,
+				// 40% interface commission
+				interfaceCommission: 4000,
+			}),
+		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
+
+		expect(await erc20.balanceOf(user2.address)).equal(600);
+		expect(await configFacet.addressToTokenToAmount(referrerInterface.address, erc20.address)).equal(400);
+		expect(await configFacet.addressToTokenToAmount(owner.address, erc20.address)).equal(40);
+		expect(await configFacet.addressToTokenToAmount(referrer.address, erc20.address)).equal(60);
+
+		await stakeFacet.connect(referrerInterface)['claim(address)'](erc20.address);
+		await stakeFacet.connect(owner)['claim(address)'](erc20.address);
+		await stakeFacet.connect(referrer)['claim(address)'](erc20.address);
+
+		await expect(
+			stakeFacet.connect(referrerInterface)['claim(address)'](erc20.address),
+		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
+		await expect(stakeFacet.connect(owner)['claim(address)'](erc20.address)).to.be.revertedWithCustomError(
+			stakeFacet,
+			'NothingToWithdraw',
+		);
+		await expect(stakeFacet.connect(referrer)['claim(address)'](erc20.address)).to.be.revertedWithCustomError(
+			stakeFacet,
+			'NothingToWithdraw',
+		);
+
+		expect(await configFacet.addressToTokenToAmount(referrerInterface.address, erc20.address)).equal(0);
+		expect(await configFacet.addressToTokenToAmount(owner.address, erc20.address)).equal(0);
+		expect(await configFacet.addressToTokenToAmount(referrer.address, erc20.address)).equal(0);
+
+		expect(await erc20.balanceOf(referrerInterface.address)).equal(400);
+		expect(await erc20.balanceOf(owner.address)).equal(40);
+		expect(await erc20.balanceOf(referrer.address)).equal(60);
+	});
+
+	it('should whitelist sender and send bulk mail without pay for attention (default = 0)', async () => {
+		const configFacet = await ethers.getContractAt('ConfigFacet', diamondAddress);
+		const mailerFacet = await ethers.getContractAt('MailerFacet', diamondAddress);
+
+		await configFacet.connect(user2).whitelistSenders([{ sender: user1.address, status: true }]);
+
+		await erc20.connect(user1).mint(1100);
+		await erc20.connect(user1).approve(diamondAddress, 1100);
+		expect(await erc20.balanceOf(user2.address)).equal(600);
+		expect(await erc20.balanceOf(user1.address)).equal(1100);
+		const recKeySups = [
+			{
+				recipient: BigNumber.from(user2.address),
+				token: erc20.address,
+				key: '0x0102',
+				supplement: '0x',
+			},
+			{
+				recipient: BigNumber.from(owner.address),
+				token: ethers.constants.AddressZero,
+				key: '0x010203',
+				supplement: '0x',
+			},
+		];
+		const content = new Uint8Array([8, 7, 8, 7, 8, 7]);
+		await mailerFacet.connect(user1).sendBulkMail(feedId, 123, recKeySups, content);
+		expect(await erc20.balanceOf(user2.address)).equal(600);
+		expect(await erc20.balanceOf(user1.address)).equal(1100);
+
+		const currentBlock = await ethers.provider.getBlockNumber();
+		const mailEvents = await mailerFacet.queryFilter(mailerFacet.filters.MailPush(null, feedId), currentBlock + 1);
+		let contentId = BigNumber.from(0);
+		for (let i = 0; i < mailEvents.length; i++) {
+			expect(mailEvents[i].args.feedId).equal(feedId);
+			expect(mailEvents[i].args.sender).equal(user1.address);
+			expect(mailEvents[i].args.recipient).equal(recKeySups[i].recipient);
+			expect(mailEvents[i].args.key).equal(recKeySups[i].key);
+			expect(mailEvents[i].args.supplement).equal(recKeySups[i].supplement);
+			if (mailEvents[i].args.recipient.eq(BigNumber.from(user2.address))) {
+				contentId = mailEvents[i].args.contentId;
+			}
+		}
+
+		const stakeInfo = await configFacet.contentIdToRecipientToTokenInfo(contentId, user2.address);
+		expect(stakeInfo.amount).equal(0);
+		expect(stakeInfo.token).equal(ethers.constants.AddressZero);
+		expect(stakeInfo.withdrawn).equal(false);
+		expect(stakeInfo.stakeBlockedUntil).equal(0);
+		expect(stakeInfo.ylideCommission).equal(0);
+		expect(stakeInfo.referrerCommission).equal(0);
+	});
+
+	it('should send mail with default pay for attention', async () => {
+		const configFacet = await ethers.getContractAt('ConfigFacet', diamondAddress);
+		const mailerFacet = await ethers.getContractAt('MailerFacet', diamondAddress);
+
+		await configFacet.connect(owner).setPaywallDefault([{ token: erc20.address, amount: 100 }]);
+
+		expect(await configFacet.recipientToPaywallTokenToAmount(user1.address, erc20.address)).equal(0);
+		expect(await configFacet.recipientToPaywallTokenToAmount(ethers.constants.AddressZero, erc20.address)).equal(
+			100,
+		);
+
+		await erc20.connect(user2).mint(1100);
+		const user2Balance = await erc20.balanceOf(user2.address);
+		await erc20.connect(user2).approve(diamondAddress, 1100);
+		expect(await erc20.balanceOf(user1.address)).equal(1100);
+		const recKeySups = [
+			{
+				recipient: BigNumber.from(user1.address),
+				token: erc20.address,
+				key: '0x0102',
+				supplement: '0x',
+			},
+		];
+		const content = new Uint8Array([8, 7, 8, 7, 8, 7]);
+		await expect(
+			mailerFacet.connect(user2).sendBulkMail(
+				feedId,
+				123,
+				[
+					{
+						recipient: BigNumber.from(user1.address),
+						token: erc20_2.address,
+						key: '0x0102',
+						supplement: '0x',
+					},
+				],
+				content,
+			),
+		).to.be.revertedWithCustomError(mailerFacet, 'PayForAttentionFailed');
+		await mailerFacet.connect(user2).sendBulkMail(feedId, 123, recKeySups, content);
+		expect(await erc20.balanceOf(user2.address)).equal(user2Balance.sub(110));
+		expect(await erc20.balanceOf(user1.address)).equal(1100);
+
+		const currentBlock = await ethers.provider.getBlockNumber();
+		const mailEvents = await mailerFacet.queryFilter(mailerFacet.filters.MailPush(null, feedId), currentBlock + 1);
+		let contentId = BigNumber.from(0);
+		for (let i = 0; i < mailEvents.length; i++) {
+			expect(mailEvents[i].args.feedId).equal(feedId);
+			expect(mailEvents[i].args.sender).equal(user2.address);
+			expect(mailEvents[i].args.recipient).equal(recKeySups[i].recipient);
+			expect(mailEvents[i].args.key).equal(recKeySups[i].key);
+			expect(mailEvents[i].args.supplement).equal(recKeySups[i].supplement);
+			if (mailEvents[i].args.recipient.eq(BigNumber.from(user1.address))) {
+				contentId = mailEvents[i].args.contentId;
+			}
+		}
+
+		const timestamp = await ethers.provider.getBlock(currentBlock).then(block => block.timestamp);
+
+		const lockupPeriod = await configFacet.stakeLockUpPeriod();
+
+		const stakeInfo = await configFacet.contentIdToRecipientToTokenInfo(contentId, user1.address);
+		expect(stakeInfo.amount).equal(100);
+		expect(stakeInfo.token).equal(erc20.address);
+		expect(stakeInfo.withdrawn).equal(false);
+		expect(stakeInfo.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
+		expect(stakeInfo.ylideCommission).equal(4);
+		expect(stakeInfo.referrerCommission).equal(6);
+	});
+
+	it('should send mail overriding default pay for attention with custom', async () => {
+		const configFacet = await ethers.getContractAt('ConfigFacet', diamondAddress);
+		const mailerFacet = await ethers.getContractAt('MailerFacet', diamondAddress);
+
+		await configFacet.connect(user1).setPaywall([{ token: erc20.address, amount: 200 }]);
+
+		expect(await configFacet.recipientToPaywallTokenToAmount(user1.address, erc20.address)).equal(200);
+		expect(await configFacet.recipientToPaywallTokenToAmount(ethers.constants.AddressZero, erc20.address)).equal(
+			100,
+		);
+
+		await erc20.connect(user2).mint(1100);
+		const user2Balance = await erc20.balanceOf(user2.address);
+		await erc20.connect(user2).approve(diamondAddress, 1100);
+		expect(await erc20.balanceOf(user1.address)).equal(1100);
+		const recKeySups = [
+			{
+				recipient: BigNumber.from(user1.address),
+				token: erc20.address,
+				key: '0x0102',
+				supplement: '0x',
+			},
+		];
+		const content = new Uint8Array([8, 7, 8, 7, 8, 7]);
+		await mailerFacet.connect(user2).sendBulkMail(feedId, 123, recKeySups, content);
+		expect(await erc20.balanceOf(user2.address)).equal(user2Balance.sub(220));
+		expect(await erc20.balanceOf(user1.address)).equal(1100);
+
+		const currentBlock = await ethers.provider.getBlockNumber();
+		const mailEvents = await mailerFacet.queryFilter(mailerFacet.filters.MailPush(null, feedId), currentBlock + 1);
+		let contentId = BigNumber.from(0);
+		for (let i = 0; i < mailEvents.length; i++) {
+			expect(mailEvents[i].args.feedId).equal(feedId);
+			expect(mailEvents[i].args.sender).equal(user2.address);
+			expect(mailEvents[i].args.recipient).equal(recKeySups[i].recipient);
+			expect(mailEvents[i].args.key).equal(recKeySups[i].key);
+			expect(mailEvents[i].args.supplement).equal(recKeySups[i].supplement);
+			if (mailEvents[i].args.recipient.eq(BigNumber.from(user1.address))) {
+				contentId = mailEvents[i].args.contentId;
+			}
+		}
+
+		const timestamp = await ethers.provider.getBlock(currentBlock).then(block => block.timestamp);
+
+		const lockupPeriod = await configFacet.stakeLockUpPeriod();
+
+		const stakeInfo = await configFacet.contentIdToRecipientToTokenInfo(contentId, user1.address);
+		expect(stakeInfo.amount).equal(200);
+		expect(stakeInfo.token).equal(erc20.address);
+		expect(stakeInfo.withdrawn).equal(false);
+		expect(stakeInfo.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
+		expect(stakeInfo.ylideCommission).equal(8);
+		expect(stakeInfo.referrerCommission).equal(12);
 	});
 });

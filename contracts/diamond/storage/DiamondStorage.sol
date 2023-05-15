@@ -90,12 +90,14 @@ struct DiamondStorage {
 	// tracking funds of beneficiaries of pay for attention (receiver interface, user referrer etc)
 	// TODO: rewrite to registrar
 	mapping(address => mapping(address => uint256)) addressToTokenToAmount;
+	// zero address used for default settings
 	mapping(address => address[]) recipientToPaywallTokens;
+	// zero address used for default settings
 	mapping(address => mapping(address => uint256)) recipientToPaywallTokenToAmount;
 	mapping(address => mapping(address => bool)) recipientToWhitelistedSender;
 	mapping(uint256 => mapping(address => TokenInfo)) contentIdToRecipientToTokenInfo;
 	uint256 stakeLockUpPeriod;
 	// Percentages denominated in 1e2. 100% = 10000 wei || 0.27% = 27 wei
 	uint256 ylideCommissionPercentage;
-	uint256 referrerCommissionPercentage;
+	mapping(address => uint256) referrerToCommissionPercentage;
 }

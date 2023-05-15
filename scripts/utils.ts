@@ -40,3 +40,11 @@ export function getSelectors(contract: Contract) {
 		return acc;
 	}, [] as string[]);
 }
+
+export async function mine(sleepDuration?: number) {
+	if (sleepDuration) {
+		await ethers.provider.send('evm_increaseTime', [sleepDuration]);
+	}
+
+	return ethers.provider.send('evm_mine', []);
+}

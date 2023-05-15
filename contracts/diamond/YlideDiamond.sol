@@ -8,6 +8,7 @@ import {IDiamondCut} from "./interfaces/IDiamondCut.sol";
 contract YlideDiamond is YlideStorage {
 	constructor(address _contractOwner, address _diamondCutFacet) payable {
 		s.contractOwner = _contractOwner;
+		s.ylideBeneficiary = payable(_contractOwner);
 
 		// Add the diamondCut external function from the diamondCutFacet
 		IDiamondCut.FacetCut[] memory cut = new IDiamondCut.FacetCut[](1);
