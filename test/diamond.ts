@@ -224,7 +224,7 @@ describe('Diamond', () => {
 		expect(await configFacet.referrerToCommissionPercentage(referrer.address)).equal(600);
 	});
 
-	it('should send mail with pay for attention + cancel by sender', async () => {
+	it('should send bulk mail with pay for attention (default = 0) + cancel by sender', async () => {
 		const configFacet = await ethers.getContractAt('ConfigFacet', diamondAddress);
 		const stakeFacet = await ethers.getContractAt('StakeFacet', diamondAddress);
 		const mailerFacet = await ethers.getContractAt('MailerFacet', diamondAddress);
@@ -251,6 +251,7 @@ describe('Diamond', () => {
 		await mailerFacet.connect(user1).sendBulkMail(feedId, 123, recKeySups, content);
 		expect(await erc20.balanceOf(user2.address)).equal(0);
 		expect(await erc20.balanceOf(user1.address)).equal(0);
+		expect(await erc20.balanceOf(diamondAddress)).equal(1100);
 
 		const currentBlock = await ethers.provider.getBlockNumber();
 		const mailEvents = await mailerFacet.queryFilter(mailerFacet.filters.MailPush(null, feedId), currentBlock + 1);
@@ -315,6 +316,7 @@ describe('Diamond', () => {
 		await erc20.connect(user1).approve(diamondAddress, 1100);
 		expect(await erc20.balanceOf(user2.address)).equal(0);
 		expect(await erc20.balanceOf(user1.address)).equal(1100);
+		expect(await erc20.balanceOf(diamondAddress)).equal(0);
 		const recKeySups = [
 			{
 				recipient: BigNumber.from(user2.address),
@@ -391,6 +393,7 @@ describe('Diamond', () => {
 		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
 
 		expect(await erc20.balanceOf(user2.address)).equal(600);
+		expect(await erc20.balanceOf(diamondAddress)).equal(500);
 		expect(await configFacet.addressToTokenToAmount(referrerInterface.address, erc20.address)).equal(400);
 		expect(await configFacet.addressToTokenToAmount(owner.address, erc20.address)).equal(40);
 		expect(await configFacet.addressToTokenToAmount(referrer.address, erc20.address)).equal(60);
@@ -415,6 +418,7 @@ describe('Diamond', () => {
 		expect(await configFacet.addressToTokenToAmount(owner.address, erc20.address)).equal(0);
 		expect(await configFacet.addressToTokenToAmount(referrer.address, erc20.address)).equal(0);
 
+		expect(await erc20.balanceOf(diamondAddress)).equal(0);
 		expect(await erc20.balanceOf(referrerInterface.address)).equal(400);
 		expect(await erc20.balanceOf(owner.address)).equal(40);
 		expect(await erc20.balanceOf(referrer.address)).equal(60);
@@ -423,11 +427,13 @@ describe('Diamond', () => {
 	it('should whitelist sender and send bulk mail without pay for attention (default = 0)', async () => {
 		const configFacet = await ethers.getContractAt('ConfigFacet', diamondAddress);
 		const mailerFacet = await ethers.getContractAt('MailerFacet', diamondAddress);
+		const stakeFacet = await ethers.getContractAt('StakeFacet', diamondAddress);
 
 		await configFacet.connect(user2).whitelistSenders([{ sender: user1.address, status: true }]);
 
 		await erc20.connect(user1).mint(1100);
 		await erc20.connect(user1).approve(diamondAddress, 1100);
+		expect(await erc20.balanceOf(diamondAddress)).equal(0);
 		expect(await erc20.balanceOf(user2.address)).equal(600);
 		expect(await erc20.balanceOf(user1.address)).equal(1100);
 		const recKeySups = [
@@ -446,6 +452,7 @@ describe('Diamond', () => {
 		];
 		const content = new Uint8Array([8, 7, 8, 7, 8, 7]);
 		await mailerFacet.connect(user1).sendBulkMail(feedId, 123, recKeySups, content);
+		expect(await erc20.balanceOf(diamondAddress)).equal(0);
 		expect(await erc20.balanceOf(user2.address)).equal(600);
 		expect(await erc20.balanceOf(user1.address)).equal(1100);
 
@@ -470,9 +477,17 @@ describe('Diamond', () => {
 		expect(stakeInfo.stakeBlockedUntil).equal(0);
 		expect(stakeInfo.ylideCommission).equal(0);
 		expect(stakeInfo.referrerCommission).equal(0);
+
+		await expect(
+			stakeFacet.connect(user2)['claim(uint256[],(address,uint256))']([contentId], {
+				interfaceAddress: referrerInterface.address,
+				// 40% interface commission
+				interfaceCommission: 4000,
+			}),
+		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
 	});
 
-	it('should send mail with default pay for attention', async () => {
+	it('should send bulk mail with default pay for attention (custom is disabled)', async () => {
 		const configFacet = await ethers.getContractAt('ConfigFacet', diamondAddress);
 		const mailerFacet = await ethers.getContractAt('MailerFacet', diamondAddress);
 
@@ -542,7 +557,7 @@ describe('Diamond', () => {
 		expect(stakeInfo.referrerCommission).equal(6);
 	});
 
-	it('should send mail overriding default pay for attention with custom', async () => {
+	it('should send bulk mail overriding default pay for attention with custom', async () => {
 		const configFacet = await ethers.getContractAt('ConfigFacet', diamondAddress);
 		const mailerFacet = await ethers.getContractAt('MailerFacet', diamondAddress);
 
