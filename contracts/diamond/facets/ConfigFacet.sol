@@ -57,7 +57,7 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		}
 	}
 
-	function _setPaywall(address recipient, PayWallArgs[] calldata args) internal {
+	function _setPaywall(uint256 recipient, PayWallArgs[] calldata args) internal {
 		for (uint256 i; i < args.length; ) {
 			bool exists = s.recipientToPaywallTokenToAmount[recipient][args[i].token] > 0;
 			s.recipientToPaywallTokenToAmount[recipient][args[i].token] = args[i].amount;
@@ -74,7 +74,7 @@ contract ConfigFacet is YlideStorage, IERC173 {
 
 	function _whitelistSenders(WhitelistArgs[] calldata args) internal {
 		for (uint256 i; i < args.length; ) {
-			s.recipientToWhitelistedSender[msg.sender][args[i].sender] = args[i].status;
+			s.recipientToWhitelistedSender[uint160(msg.sender)][args[i].sender] = args[i].status;
 			unchecked {
 				i++;
 			}
@@ -169,19 +169,19 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		return s.addressToTokenToAmount[addr][token];
 	}
 
-	function recipientToPaywallTokens(address recipient) external view returns (address[] memory) {
+	function recipientToPaywallTokens(uint256 recipient) external view returns (address[] memory) {
 		return s.recipientToPaywallTokens[recipient];
 	}
 
 	function recipientToPaywallTokenToAmount(
-		address recipient,
+		uint256 recipient,
 		address token
 	) external view returns (uint256) {
 		return s.recipientToPaywallTokenToAmount[recipient][token];
 	}
 
 	function recipientToWhitelistedSender(
-		address recipient,
+		uint256 recipient,
 		address sender
 	) external view returns (bool) {
 		return s.recipientToWhitelistedSender[recipient][sender];
@@ -189,7 +189,7 @@ contract ConfigFacet is YlideStorage, IERC173 {
 
 	function contentIdToRecipientToTokenInfo(
 		uint256 contentId,
-		address recipient
+		uint256 recipient
 	) external view returns (TokenInfo memory) {
 		return s.contentIdToRecipientToTokenInfo[contentId][recipient];
 	}
@@ -322,7 +322,7 @@ contract ConfigFacet is YlideStorage, IERC173 {
 	}
 
 	function setPaywall(PayWallArgs[] calldata payWallArgs) external {
-		_setPaywall(msg.sender, payWallArgs);
+		_setPaywall(uint160(msg.sender), payWallArgs);
 	}
 
 	function whitelistSenders(WhitelistArgs[] calldata whitelistArgs) external {
@@ -333,12 +333,12 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		PayWallArgs[] calldata payWallArgs,
 		WhitelistArgs[] calldata whitelistArgs
 	) external {
-		_setPaywall(msg.sender, payWallArgs);
+		_setPaywall(uint160(msg.sender), payWallArgs);
 		_whitelistSenders(whitelistArgs);
 	}
 
 	function setPaywallDefault(PayWallArgs[] calldata payWallArgs) external {
 		LibOwner.enforceIsContractOwner(s);
-		_setPaywall(address(0), payWallArgs);
+		_setPaywall(0, payWallArgs);
 	}
 }

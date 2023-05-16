@@ -91,11 +91,11 @@ struct DiamondStorage {
 	// TODO: rewrite to registrar
 	mapping(address => mapping(address => uint256)) addressToTokenToAmount;
 	// zero address used for default settings
-	mapping(address => address[]) recipientToPaywallTokens;
+	mapping(uint256 => address[]) recipientToPaywallTokens;
 	// zero address used for default settings
-	mapping(address => mapping(address => uint256)) recipientToPaywallTokenToAmount;
-	mapping(address => mapping(address => bool)) recipientToWhitelistedSender;
-	mapping(uint256 => mapping(address => TokenInfo)) contentIdToRecipientToTokenInfo;
+	mapping(uint256 => mapping(address => uint256)) recipientToPaywallTokenToAmount;
+	mapping(uint256 => mapping(address => bool)) recipientToWhitelistedSender;
+	mapping(uint256 => mapping(uint256 => TokenInfo)) contentIdToRecipientToTokenInfo;
 	uint256 stakeLockUpPeriod;
 	// Percentages denominated in 1e2. 100% = 10000 wei || 0.27% = 27 wei
 	uint256 ylideCommissionPercentage;

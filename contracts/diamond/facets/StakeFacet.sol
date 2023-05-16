@@ -45,7 +45,7 @@ contract StakeFacet is YlideStorage {
 		}
 		for (uint256 i; i < contentIds.length; ) {
 			TokenInfo storage tokenInfo = s.contentIdToRecipientToTokenInfo[contentIds[i]][
-				msg.sender
+				uint160(msg.sender)
 			];
 			if (tokenInfo.token == address(0) || tokenInfo.withdrawn) {
 				revert NothingToWithdraw();
@@ -81,7 +81,7 @@ contract StakeFacet is YlideStorage {
 	function cancel(CancelArgs[] calldata args) external {
 		for (uint256 i; i < args.length; ) {
 			TokenInfo storage tokenInfo = s.contentIdToRecipientToTokenInfo[args[i].contentId][
-				args[i].recipient
+				uint160(args[i].recipient)
 			];
 			if (tokenInfo.token == address(0) || tokenInfo.withdrawn) {
 				revert NothingToWithdraw();

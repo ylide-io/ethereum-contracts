@@ -174,20 +174,19 @@ contract MailerFacet is YlideStorage {
 		uint256 contentId,
 		MailArgs calldata mailArgs
 	) internal returns (bool) {
-		address recipient = address(uint160(mailArgs.recipient));
 		// TODO: we should ensure that sending message to yourself is always free
 		// white list oneself while setting up the paywall?
 		uint256 amount;
-		if (s.recipientToWhitelistedSender[recipient][msg.sender]) {
+		if (s.recipientToWhitelistedSender[mailArgs.recipient][msg.sender]) {
 			return true;
 		}
-		if (s.recipientToPaywallTokens[recipient].length == 0) {
-			if (s.recipientToPaywallTokens[address(0)].length == 0) {
+		if (s.recipientToPaywallTokens[mailArgs.recipient].length == 0) {
+			if (s.recipientToPaywallTokens[0].length == 0) {
 				return true;
 			}
-			amount = s.recipientToPaywallTokenToAmount[address(0)][mailArgs.token];
+			amount = s.recipientToPaywallTokenToAmount[0][mailArgs.token];
 		} else {
-			amount = s.recipientToPaywallTokenToAmount[recipient][mailArgs.token];
+			amount = s.recipientToPaywallTokenToAmount[mailArgs.recipient][mailArgs.token];
 		}
 		if (amount == 0) {
 			return false;
@@ -196,7 +195,7 @@ contract MailerFacet is YlideStorage {
 		uint256 referrerCommission = (s.referrerToCommissionPercentage[
 			s.addressToPublicKey[msg.sender].registrar
 		] * amount) / 10000;
-		s.contentIdToRecipientToTokenInfo[contentId][recipient] = TokenInfo({
+		s.contentIdToRecipientToTokenInfo[contentId][mailArgs.recipient] = TokenInfo({
 			amount: amount,
 			token: mailArgs.token,
 			sender: msg.sender,
