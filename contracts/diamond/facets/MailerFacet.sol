@@ -21,6 +21,7 @@ contract MailerFacet is YlideStorage {
 		// uint8 type - bytes data
 		// NONE: 0x
 		// SAFE: 1 - uint256 senderSafeChainId, address safeSender, uint256 recipientSafeChainId, address safeRecipient
+		// PAY_FOR_ATTENTION: 2
 		bytes supplement;
 	}
 
