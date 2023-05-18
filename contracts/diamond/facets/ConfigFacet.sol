@@ -159,6 +159,12 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		return s.recipientToWhitelistedSender[recipient][sender];
 	}
 
+	function userSelfWhitelisted(address user) external view returns (bool) {
+		return
+			s.recipientToWhitelistedSender[uint160(user)][user] &&
+			s.recipientToWhitelistedSender[uint256(sha256(abi.encode(user)))][user];
+	}
+
 	function contentIdToRecipientToTokenInfo(
 		uint256 contentId,
 		uint256 recipient
@@ -333,6 +339,11 @@ contract ConfigFacet is YlideStorage, IERC173 {
 				i++;
 			}
 		}
+	}
+
+	function whitelistOneself() external {
+		s.recipientToWhitelistedSender[uint160(msg.sender)][msg.sender] = true;
+		s.recipientToWhitelistedSender[uint256(sha256(abi.encode(msg.sender)))][msg.sender] = true;
 	}
 
 	function setPaywallDefault(PayWallArgs[] calldata args) external {
