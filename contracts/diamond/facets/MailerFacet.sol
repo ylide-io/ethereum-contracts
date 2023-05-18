@@ -177,25 +177,45 @@ contract MailerFacet is YlideStorage {
 	) internal returns (bool) {
 		// TODO: we should ensure that sending message to yourself is always free
 		// white list oneself while setting up the paywall?
-		uint256 amount;
+
+		// if protocol has no pay wall tokens - allow sending for free
+		if (s.allowedTokens.list.length == 0) {
+			return true;
+		}
+		// if sender is whitelisted - allow sending for free
 		if (s.recipientToWhitelistedSender[mailArgs.recipient][msg.sender]) {
 			return true;
 		}
-		if (s.recipientToPaywallTokens[mailArgs.recipient].length == 0) {
-			if (s.recipientToPaywallTokens[0].length == 0) {
+		// user tries to trick us with wrong token - revert
+		if (!s.allowedTokens.includes[mailArgs.token]) {
+			return false;
+		}
+
+		// if user already paid for this content - revert
+		if (s.contentIdToRecipientToTokenInfo[contentId][mailArgs.recipient].token != address(0)) {
+			return false;
+		}
+
+		uint256 amount;
+		uint256 userAmount = s.recipientToPaywallTokenToAmount[mailArgs.recipient][mailArgs.token];
+		// if user has no custom paywall
+		if (userAmount == 0) {
+			uint256 defaultAmount = s.defaultPaywallTokenToAmount[mailArgs.token];
+			// if protocol has no default paywall - allow sending for free
+			if (defaultAmount == 0) {
 				return true;
 			}
-			amount = s.recipientToPaywallTokenToAmount[0][mailArgs.token];
+			// protocol has default paywall - use it
+			amount = defaultAmount;
 		} else {
-			amount = s.recipientToPaywallTokenToAmount[mailArgs.recipient][mailArgs.token];
-		}
-		if (amount == 0) {
-			return false;
+			// set user custom paywall
+			amount = userAmount;
 		}
 		uint256 ylideCommission = (s.ylideCommissionPercentage * amount) / 10000;
 		uint256 referrerCommission = (s.referrerToCommissionPercentage[
 			s.addressToPublicKey[msg.sender].registrar
 		] * amount) / 10000;
+
 		s.contentIdToRecipientToTokenInfo[contentId][mailArgs.recipient] = TokenInfo({
 			amount: amount,
 			token: mailArgs.token,

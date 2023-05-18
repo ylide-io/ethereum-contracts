@@ -4,6 +4,7 @@ pragma solidity ^0.8.17;
 import {YlideStorage} from "../storage/YlideStorage.sol";
 import {MailingFeed, BroadcastFeed, RegistryEntry, TokenInfo} from "../storage/DiamondStorage.sol";
 import {LibOwner} from "../libraries/LibOwner.sol";
+import {LibListMap} from "../libraries/LibListMap.sol";
 import {IERC173} from "../interfaces/IERC173.sol";
 
 // Contains all getters for YlideStorage variables
@@ -41,43 +42,6 @@ contract ConfigFacet is YlideStorage, IERC173 {
 	function _validateBroadCastFeedOwner(uint256 feedId) internal view {
 		if (msg.sender != s.broadcastFeeds[feedId].owner) {
 			revert NotFeedOwner();
-		}
-	}
-
-	function _removeToken(address token, address[] storage tokens) internal {
-		for (uint256 i; i < tokens.length; ) {
-			if (tokens[i] == token) {
-				tokens[i] = tokens[tokens.length - 1];
-				tokens.pop();
-				return;
-			}
-			unchecked {
-				i++;
-			}
-		}
-	}
-
-	function _setPaywall(uint256 recipient, PayWallArgs[] calldata args) internal {
-		for (uint256 i; i < args.length; ) {
-			bool exists = s.recipientToPaywallTokenToAmount[recipient][args[i].token] > 0;
-			s.recipientToPaywallTokenToAmount[recipient][args[i].token] = args[i].amount;
-			if (args[i].amount > 0 && !exists) {
-				s.recipientToPaywallTokens[recipient].push(args[i].token);
-			} else if (args[i].amount == 0 && exists) {
-				_removeToken(args[i].token, s.recipientToPaywallTokens[recipient]);
-			}
-			unchecked {
-				i++;
-			}
-		}
-	}
-
-	function _whitelistSenders(WhitelistArgs[] calldata args) internal {
-		for (uint256 i; i < args.length; ) {
-			s.recipientToWhitelistedSender[uint160(msg.sender)][args[i].sender] = args[i].status;
-			unchecked {
-				i++;
-			}
 		}
 	}
 
@@ -169,15 +133,23 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		return s.addressToTokenToAmount[addr][token];
 	}
 
-	function recipientToPaywallTokens(uint256 recipient) external view returns (address[] memory) {
-		return s.recipientToPaywallTokens[recipient];
-	}
-
 	function recipientToPaywallTokenToAmount(
 		uint256 recipient,
 		address token
 	) external view returns (uint256) {
 		return s.recipientToPaywallTokenToAmount[recipient][token];
+	}
+
+	function allowedTokens() external view returns (address[] memory) {
+		return s.allowedTokens.list;
+	}
+
+	function isAllowedToken(address token) external view returns (bool) {
+		return s.allowedTokens.includes[token];
+	}
+
+	function defaultPaywallTokenToAmount(address token) external view returns (uint256) {
+		return s.defaultPaywallTokenToAmount[token];
 	}
 
 	function recipientToWhitelistedSender(
@@ -204,6 +176,30 @@ contract ConfigFacet is YlideStorage, IERC173 {
 
 	function referrerToCommissionPercentage(address referrer) external view returns (uint256) {
 		return s.referrerToCommissionPercentage[referrer];
+	}
+
+	function getRecipientPaywallInfo(
+		uint256 recipient,
+		address sender
+	) external view returns (PayWallArgs[] memory) {
+		address[] memory _allowedTokens = s.allowedTokens.list;
+		PayWallArgs[] memory payWallOptions = new PayWallArgs[](_allowedTokens.length);
+		for (uint256 i; i < _allowedTokens.length; ) {
+			uint256 amount;
+			uint256 userAmount = s.recipientToPaywallTokenToAmount[recipient][_allowedTokens[i]];
+			if (s.recipientToWhitelistedSender[recipient][sender]) {
+				amount = 0;
+			} else if (userAmount == 0) {
+				amount = s.defaultPaywallTokenToAmount[_allowedTokens[i]];
+			} else {
+				amount = userAmount;
+			}
+			payWallOptions[i] = PayWallArgs(_allowedTokens[i], amount);
+			unchecked {
+				i++;
+			}
+		}
+		return payWallOptions;
 	}
 
 	// ================================
@@ -321,24 +317,41 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		s.referrerToCommissionPercentage[msg.sender] = commissionPercentage;
 	}
 
-	function setPaywall(PayWallArgs[] calldata payWallArgs) external {
-		_setPaywall(uint160(msg.sender), payWallArgs);
+	function setPaywall(PayWallArgs[] calldata args) external {
+		for (uint256 i; i < args.length; ) {
+			s.recipientToPaywallTokenToAmount[uint160(msg.sender)][args[i].token] = args[i].amount;
+			unchecked {
+				i++;
+			}
+		}
 	}
 
-	function whitelistSenders(WhitelistArgs[] calldata whitelistArgs) external {
-		_whitelistSenders(whitelistArgs);
+	function whitelistSenders(WhitelistArgs[] calldata args) external {
+		for (uint256 i; i < args.length; ) {
+			s.recipientToWhitelistedSender[uint160(msg.sender)][args[i].sender] = args[i].status;
+			unchecked {
+				i++;
+			}
+		}
 	}
 
-	function setPayWallAndWhiteListSenders(
-		PayWallArgs[] calldata payWallArgs,
-		WhitelistArgs[] calldata whitelistArgs
-	) external {
-		_setPaywall(uint160(msg.sender), payWallArgs);
-		_whitelistSenders(whitelistArgs);
-	}
-
-	function setPaywallDefault(PayWallArgs[] calldata payWallArgs) external {
+	function setPaywallDefault(PayWallArgs[] calldata args) external {
 		LibOwner.enforceIsContractOwner(s);
-		_setPaywall(0, payWallArgs);
+		for (uint256 i; i < args.length; ) {
+			s.defaultPaywallTokenToAmount[args[i].token] = args[i].amount;
+			unchecked {
+				i++;
+			}
+		}
+	}
+
+	function addAllowedTokens(address[] calldata args) external {
+		LibOwner.enforceIsContractOwner(s);
+		LibListMap.addList(s.allowedTokens, args);
+	}
+
+	function removeAllowedTokens(address[] calldata args) external {
+		LibOwner.enforceIsContractOwner(s);
+		LibListMap.removeList(s.allowedTokens, args);
 	}
 }

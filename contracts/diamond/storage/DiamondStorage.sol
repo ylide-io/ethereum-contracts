@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
+import {LibListMap} from "../libraries/LibListMap.sol";
+
 struct RegistryEntry {
 	uint256 previousEventsIndex;
 	uint256 publicKey;
@@ -90,12 +92,15 @@ struct DiamondStorage {
 	// tracking funds of beneficiaries of pay for attention (receiver interface, user referrer etc)
 	// TODO: rewrite to registrar
 	mapping(address => mapping(address => uint256)) addressToTokenToAmount;
-	// zero address used for default settings
-	mapping(uint256 => address[]) recipientToPaywallTokens;
-	// zero address used for default settings
+	// globally allowed tokens by ylide
+	LibListMap._address allowedTokens;
+	mapping(address => uint256) defaultPaywallTokenToAmount;
+	// user specific settings for pay for attention
 	mapping(uint256 => mapping(address => uint256)) recipientToPaywallTokenToAmount;
 	mapping(uint256 => mapping(address => bool)) recipientToWhitelistedSender;
+	// info on staked tokens
 	mapping(uint256 => mapping(uint256 => TokenInfo)) contentIdToRecipientToTokenInfo;
+	// config of staking
 	uint256 stakeLockUpPeriod;
 	// Percentages denominated in 1e2. 100% = 10000 wei || 0.27% = 27 wei
 	uint256 ylideCommissionPercentage;
