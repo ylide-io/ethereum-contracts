@@ -173,20 +173,46 @@ describe('Diamond', () => {
 
 	it('should manage pay wall', async () => {
 		const configFacet = await ethers.getContractAt('ConfigFacet', diamondAddress);
+
+		await configFacet
+			.connect(owner)
+			.addAllowedTokens([user2.address, erc20.address, owner.address, erc20_2.address]);
+		expect(await configFacet.allowedTokens()).deep.equal([
+			user2.address,
+			erc20.address,
+			owner.address,
+			erc20_2.address,
+		]);
+
+		await configFacet.connect(owner).setPaywallDefault([
+			{ token: user2.address, amount: 1 },
+			{ token: owner.address, amount: 2 },
+			{ token: erc20.address, amount: 999 },
+		]);
+
+		expect(await configFacet.defaultPaywallTokenToAmount(user2.address)).equal(1);
+		expect(await configFacet.defaultPaywallTokenToAmount(erc20.address)).equal(999);
+		expect(await configFacet.defaultPaywallTokenToAmount(owner.address)).equal(2);
+
+		await configFacet.connect(owner).setPaywallDefault([
+			{ token: user2.address, amount: 0 },
+			{ token: owner.address, amount: 0 },
+			{ token: erc20.address, amount: 0 },
+		]);
+
+		expect(await configFacet.defaultPaywallTokenToAmount(user2.address)).equal(0);
+		expect(await configFacet.defaultPaywallTokenToAmount(erc20.address)).equal(0);
+		expect(await configFacet.defaultPaywallTokenToAmount(owner.address)).equal(0);
+
 		await configFacet.connect(user2).setPaywall([
 			{ token: user2.address, amount: 1 },
-			{ token: erc20.address, amount: 999 },
 			{ token: owner.address, amount: 2 },
+			{ token: erc20.address, amount: 999 },
 		]);
 
 		expect(await configFacet.recipientToPaywallTokenToAmount(user2.address, user2.address)).equal(1);
 		expect(await configFacet.recipientToPaywallTokenToAmount(user2.address, erc20.address)).equal(999);
 		expect(await configFacet.recipientToPaywallTokenToAmount(user2.address, owner.address)).equal(2);
-		expect(await configFacet.recipientToPaywallTokens(user2.address)).deep.equal([
-			user2.address,
-			erc20.address,
-			owner.address,
-		]);
 
 		await configFacet.connect(user2).setPaywall([
 			{ token: user2.address, amount: 0 },
@@ -196,7 +222,6 @@ describe('Diamond', () => {
 		expect(await configFacet.recipientToPaywallTokenToAmount(user2.address, user2.address)).equal(0);
 		expect(await configFacet.recipientToPaywallTokenToAmount(user2.address, erc20.address)).equal(999);
 		expect(await configFacet.recipientToPaywallTokenToAmount(user2.address, owner.address)).equal(3);
-		expect(await configFacet.recipientToPaywallTokens(user2.address)).deep.equal([owner.address, erc20.address]);
 
 		await configFacet.connect(user2).setPaywall([
 			{ token: erc20.address, amount: 1000 },
@@ -208,7 +233,9 @@ describe('Diamond', () => {
 		expect(await configFacet.recipientToPaywallTokenToAmount(user2.address, erc20.address)).equal(1000);
 		expect(await configFacet.recipientToPaywallTokenToAmount(user2.address, owner.address)).equal(0);
 		expect(await configFacet.recipientToPaywallTokenToAmount(user2.address, erc20_2.address)).equal(2000);
-		expect(await configFacet.recipientToPaywallTokens(user2.address)).deep.equal([erc20.address, erc20_2.address]);
+
+		await configFacet.connect(owner).removeAllowedTokens([user2.address, owner.address]);
+		expect(await configFacet.allowedTokens()).deep.equal([erc20_2.address, erc20.address]);
 	});
 
 	it('should correctly set fees for pay for attention', async () => {
@@ -229,6 +256,22 @@ describe('Diamond', () => {
 		const stakeFacet = await ethers.getContractAt('StakeFacet', diamondAddress);
 		const mailerFacet = await ethers.getContractAt('MailerFacet', diamondAddress);
 
+		expect(await configFacet.allowedTokens()).deep.equal([erc20_2.address, erc20.address]);
+		expect(await configFacet.defaultPaywallTokenToAmount(erc20.address)).equal(0);
+		expect(await configFacet.defaultPaywallTokenToAmount(erc20_2.address)).equal(0);
+		expect(await configFacet.isAllowedToken(erc20.address)).equal(true);
+		expect(await configFacet.isAllowedToken(erc20_2.address)).equal(true);
+		const user2PaywallInfo = await configFacet.getRecipientPaywallInfo(user2.address, user1.address);
+		expect(user2PaywallInfo[0].token).equal(erc20_2.address);
+		expect(user2PaywallInfo[0].amount).equal(2000);
+		expect(user2PaywallInfo[1].token).equal(erc20.address);
+		expect(user2PaywallInfo[1].amount).equal(1000);
+		const ownerPaywallInfo = await configFacet.getRecipientPaywallInfo(owner.address, user1.address);
+		expect(ownerPaywallInfo[0].token).equal(erc20_2.address);
+		expect(ownerPaywallInfo[0].amount).equal(0);
+		expect(ownerPaywallInfo[1].token).equal(erc20.address);
+		expect(ownerPaywallInfo[1].amount).equal(0);
+
 		await erc20.connect(user1).mint(1100);
 		await erc20.connect(user1).approve(diamondAddress, 1100);
 		expect(await erc20.balanceOf(user2.address)).equal(0);
@@ -242,7 +285,7 @@ describe('Diamond', () => {
 			},
 			{
 				recipient: BigNumber.from(owner.address),
-				token: ethers.constants.AddressZero,
+				token: erc20.address,
 				key: '0x010203',
 				supplement: '0x',
 			},
@@ -313,6 +356,22 @@ describe('Diamond', () => {
 		const stakeFacet = await ethers.getContractAt('StakeFacet', diamondAddress);
 		const mailerFacet = await ethers.getContractAt('MailerFacet', diamondAddress);
 
+		expect(await configFacet.allowedTokens()).deep.equal([erc20_2.address, erc20.address]);
+		expect(await configFacet.defaultPaywallTokenToAmount(erc20.address)).equal(0);
+		expect(await configFacet.defaultPaywallTokenToAmount(erc20_2.address)).equal(0);
+		expect(await configFacet.isAllowedToken(erc20.address)).equal(true);
+		expect(await configFacet.isAllowedToken(erc20_2.address)).equal(true);
+		const user2PaywallInfo = await configFacet.getRecipientPaywallInfo(user2.address, user1.address);
+		expect(user2PaywallInfo[0].token).equal(erc20_2.address);
+		expect(user2PaywallInfo[0].amount).equal(2000);
+		expect(user2PaywallInfo[1].token).equal(erc20.address);
+		expect(user2PaywallInfo[1].amount).equal(1000);
+		const ownerPaywallInfo = await configFacet.getRecipientPaywallInfo(owner.address, user1.address);
+		expect(ownerPaywallInfo[0].token).equal(erc20_2.address);
+		expect(ownerPaywallInfo[0].amount).equal(0);
+		expect(ownerPaywallInfo[1].token).equal(erc20.address);
+		expect(ownerPaywallInfo[1].amount).equal(0);
+
 		await erc20.connect(user1).approve(diamondAddress, 1100);
 		expect(await erc20.balanceOf(user2.address)).equal(0);
 		expect(await erc20.balanceOf(user1.address)).equal(1100);
@@ -326,7 +385,7 @@ describe('Diamond', () => {
 			},
 			{
 				recipient: BigNumber.from(owner.address),
-				token: ethers.constants.AddressZero,
+				token: erc20.address,
 				key: '0x010203',
 				supplement: '0x',
 			},
@@ -431,6 +490,24 @@ describe('Diamond', () => {
 
 		await configFacet.connect(user2).whitelistSenders([{ sender: user1.address, status: true }]);
 
+		expect(await configFacet.recipientToWhitelistedSender(user2.address, user1.address)).equal(true);
+
+		expect(await configFacet.allowedTokens()).deep.equal([erc20_2.address, erc20.address]);
+		expect(await configFacet.defaultPaywallTokenToAmount(erc20.address)).equal(0);
+		expect(await configFacet.defaultPaywallTokenToAmount(erc20_2.address)).equal(0);
+		expect(await configFacet.isAllowedToken(erc20.address)).equal(true);
+		expect(await configFacet.isAllowedToken(erc20_2.address)).equal(true);
+		const user2PaywallInfo = await configFacet.getRecipientPaywallInfo(user2.address, user1.address);
+		expect(user2PaywallInfo[0].token).equal(erc20_2.address);
+		expect(user2PaywallInfo[0].amount).equal(0);
+		expect(user2PaywallInfo[1].token).equal(erc20.address);
+		expect(user2PaywallInfo[1].amount).equal(0);
+		const ownerPaywallInfo = await configFacet.getRecipientPaywallInfo(owner.address, user1.address);
+		expect(ownerPaywallInfo[0].token).equal(erc20_2.address);
+		expect(ownerPaywallInfo[0].amount).equal(0);
+		expect(ownerPaywallInfo[1].token).equal(erc20.address);
+		expect(ownerPaywallInfo[1].amount).equal(0);
+
 		await erc20.connect(user1).mint(1100);
 		await erc20.connect(user1).approve(diamondAddress, 1100);
 		expect(await erc20.balanceOf(diamondAddress)).equal(0);
@@ -445,7 +522,7 @@ describe('Diamond', () => {
 			},
 			{
 				recipient: BigNumber.from(owner.address),
-				token: ethers.constants.AddressZero,
+				token: erc20.address,
 				key: '0x010203',
 				supplement: '0x',
 			},
@@ -492,16 +569,25 @@ describe('Diamond', () => {
 		const mailerFacet = await ethers.getContractAt('MailerFacet', diamondAddress);
 
 		await configFacet.connect(owner).setPaywallDefault([{ token: erc20.address, amount: 100 }]);
-
 		expect(await configFacet.recipientToPaywallTokenToAmount(user1.address, erc20.address)).equal(0);
-		expect(await configFacet.recipientToPaywallTokenToAmount(ethers.constants.AddressZero, erc20.address)).equal(
-			100,
-		);
+
+		expect(await configFacet.allowedTokens()).deep.equal([erc20_2.address, erc20.address]);
+		expect(await configFacet.defaultPaywallTokenToAmount(erc20.address)).equal(100);
+		expect(await configFacet.defaultPaywallTokenToAmount(erc20_2.address)).equal(0);
+		expect(await configFacet.isAllowedToken(erc20.address)).equal(true);
+		expect(await configFacet.isAllowedToken(erc20_2.address)).equal(true);
+		const user2PaywallInfo = await configFacet.getRecipientPaywallInfo(user1.address, user2.address);
+		expect(user2PaywallInfo[0].token).equal(erc20_2.address);
+		expect(user2PaywallInfo[0].amount).equal(0);
+		expect(user2PaywallInfo[1].token).equal(erc20.address);
+		expect(user2PaywallInfo[1].amount).equal(100);
 
 		await erc20.connect(user2).mint(1100);
 		const user2Balance = await erc20.balanceOf(user2.address);
 		await erc20.connect(user2).approve(diamondAddress, 1100);
 		expect(await erc20.balanceOf(user1.address)).equal(1100);
+
+		const content = new Uint8Array([8, 7, 8, 7, 8, 7]);
 		const recKeySups = [
 			{
 				recipient: BigNumber.from(user1.address),
@@ -510,22 +596,6 @@ describe('Diamond', () => {
 				supplement: '0x',
 			},
 		];
-		const content = new Uint8Array([8, 7, 8, 7, 8, 7]);
-		await expect(
-			mailerFacet.connect(user2).sendBulkMail(
-				feedId,
-				123,
-				[
-					{
-						recipient: BigNumber.from(user1.address),
-						token: erc20_2.address,
-						key: '0x0102',
-						supplement: '0x',
-					},
-				],
-				content,
-			),
-		).to.be.revertedWithCustomError(mailerFacet, 'PayForAttentionFailed');
 		await mailerFacet.connect(user2).sendBulkMail(feedId, 123, recKeySups, content);
 		expect(await erc20.balanceOf(user2.address)).equal(user2Balance.sub(110));
 		expect(await erc20.balanceOf(user1.address)).equal(1100);
@@ -564,9 +634,17 @@ describe('Diamond', () => {
 		await configFacet.connect(user1).setPaywall([{ token: erc20.address, amount: 200 }]);
 
 		expect(await configFacet.recipientToPaywallTokenToAmount(user1.address, erc20.address)).equal(200);
-		expect(await configFacet.recipientToPaywallTokenToAmount(ethers.constants.AddressZero, erc20.address)).equal(
-			100,
-		);
+
+		expect(await configFacet.allowedTokens()).deep.equal([erc20_2.address, erc20.address]);
+		expect(await configFacet.defaultPaywallTokenToAmount(erc20.address)).equal(100);
+		expect(await configFacet.defaultPaywallTokenToAmount(erc20_2.address)).equal(0);
+		expect(await configFacet.isAllowedToken(erc20.address)).equal(true);
+		expect(await configFacet.isAllowedToken(erc20_2.address)).equal(true);
+		const user2PaywallInfo = await configFacet.getRecipientPaywallInfo(user1.address, user2.address);
+		expect(user2PaywallInfo[0].token).equal(erc20_2.address);
+		expect(user2PaywallInfo[0].amount).equal(0);
+		expect(user2PaywallInfo[1].token).equal(erc20.address);
+		expect(user2PaywallInfo[1].amount).equal(200);
 
 		await erc20.connect(user2).mint(1100);
 		const user2Balance = await erc20.balanceOf(user2.address);
