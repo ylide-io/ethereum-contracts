@@ -33,7 +33,8 @@ abstract contract YlideStorage {
 		uint256 contentId,
 		uint256 previousFeedEventsIndex,
 		bytes key,
-		bytes supplement
+		bytes supplement,
+		bool paidForAttention
 	);
 	event BroadcastPush(
 		address indexed sender,

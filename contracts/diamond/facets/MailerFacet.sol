@@ -21,7 +21,6 @@ contract MailerFacet is YlideStorage {
 		// uint8 type - bytes data
 		// NONE: 0x
 		// SAFE: 1 - uint256 senderSafeChainId, address safeSender, uint256 recipientSafeChainId, address safeRecipient
-		// PAY_FOR_ATTENTION: 2
 		bytes supplement;
 	}
 
@@ -98,7 +97,8 @@ contract MailerFacet is YlideStorage {
 		uint256 feedId,
 		address sender,
 		uint256 contentId,
-		MailArgs calldata mailArgs
+		MailArgs calldata mailArgs,
+		bool paidForAttention
 	) internal {
 		if (s.mailingFeeds[feedId].owner == address(0)) {
 			revert FeedDoesNotExist();
@@ -124,7 +124,8 @@ contract MailerFacet is YlideStorage {
 			contentId,
 			currentFeed,
 			mailArgs.key,
-			mailArgs.supplement
+			mailArgs.supplement,
+			paidForAttention
 		);
 	}
 
@@ -174,26 +175,26 @@ contract MailerFacet is YlideStorage {
 	function _payForAttention(
 		uint256 contentId,
 		MailArgs calldata mailArgs
-	) internal returns (bool) {
+	) internal returns (bool paidForAttention, bool success) {
 		// TODO: we should ensure that sending message to yourself is always free
 		// white list oneself while setting up the paywall?
 
 		// if protocol has no pay wall tokens - allow sending for free
 		if (s.allowedTokens.list.length == 0) {
-			return true;
+			return (false, true);
 		}
 		// if sender is whitelisted - allow sending for free
 		if (s.recipientToWhitelistedSender[mailArgs.recipient][msg.sender]) {
-			return true;
+			return (false, true);
 		}
 		// user tries to trick us with wrong token - revert
 		if (!s.allowedTokens.includes[mailArgs.token]) {
-			return false;
+			return (false, false);
 		}
 
 		// if user already paid for this content - revert
 		if (s.contentIdToRecipientToTokenInfo[contentId][mailArgs.recipient].token != address(0)) {
-			return false;
+			return (false, false);
 		}
 
 		uint256 amount;
@@ -203,7 +204,7 @@ contract MailerFacet is YlideStorage {
 			uint256 defaultAmount = s.defaultPaywallTokenToAmount[mailArgs.token];
 			// if protocol has no default paywall - allow sending for free
 			if (defaultAmount == 0) {
-				return true;
+				return (false, true);
 			}
 			// protocol has default paywall - use it
 			amount = defaultAmount;
@@ -230,7 +231,7 @@ contract MailerFacet is YlideStorage {
 			address(this),
 			amount + ylideCommission + referrerCommission
 		);
-		return true;
+		return (true, true);
 	}
 
 	// ================================
@@ -248,10 +249,11 @@ contract MailerFacet is YlideStorage {
 		emit MessageContent(contentId, msg.sender, 1, 0, content);
 
 		for (uint i = 0; i < args.length; i++) {
-			if (!_payForAttention(contentId, args[i])) {
+			(bool paidForAttention, bool success) = _payForAttention(contentId, args[i]);
+			if (!success) {
 				revert PayForAttentionFailed();
 			}
-			_emitMailPush(feedId, msg.sender, contentId, args[i]);
+			_emitMailPush(feedId, msg.sender, contentId, args[i], paidForAttention);
 		}
 
 		_payOut(1, args.length, 0);
@@ -277,10 +279,11 @@ contract MailerFacet is YlideStorage {
 		);
 
 		for (uint i = 0; i < args.length; i++) {
-			if (!_payForAttention(contentId, args[i])) {
+			(bool paidForAttention, bool success) = _payForAttention(contentId, args[i]);
+			if (!success) {
 				revert PayForAttentionFailed();
 			}
-			_emitMailPush(feedId, msg.sender, contentId, args[i]);
+			_emitMailPush(feedId, msg.sender, contentId, args[i], paidForAttention);
 		}
 
 		_payOut(0, args.length, 0);
