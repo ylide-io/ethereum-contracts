@@ -200,7 +200,14 @@ contract ConfigFacet is YlideStorage, IERC173 {
 			} else {
 				amount = userAmount;
 			}
-			payWallOptions[i] = PayWallArgs(_allowedTokens[i], amount);
+			uint256 ylideCommission = (s.ylideCommissionPercentage * amount) / 10000;
+			uint256 referrerCommission = (s.referrerToCommissionPercentage[
+				s.addressToPublicKey[address(uint160(recipient))].registrar
+			] * amount) / 10000;
+			payWallOptions[i] = PayWallArgs(
+				_allowedTokens[i],
+				amount + ylideCommission + referrerCommission
+			);
 			unchecked {
 				i++;
 			}
