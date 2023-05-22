@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-library LibListMap {
+library ListMap {
 	error ElementMissing();
 	error ElementExists();
 

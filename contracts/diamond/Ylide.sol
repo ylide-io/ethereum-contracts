@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {YlideStorage} from "./storage/YlideStorage.sol";
-import {LibDiamond} from "./libraries/LibDiamond.sol";
+import {YlideStorage} from "./YlideStorage.sol";
+import {Diamond} from "./libraries/Diamond.sol";
 import {IDiamondCut} from "./interfaces/IDiamondCut.sol";
 
-contract YlideDiamond is YlideStorage {
+contract Ylide is YlideStorage {
 	constructor(address _contractOwner, address _diamondCutFacet) payable {
 		s.contractOwner = _contractOwner;
 		s.ylideBeneficiary = payable(_contractOwner);
@@ -19,7 +19,7 @@ contract YlideDiamond is YlideStorage {
 			action: IDiamondCut.FacetCutAction.Add,
 			functionSelectors: functionSelectors
 		});
-		LibDiamond.diamondCut(s, cut, address(0), "");
+		Diamond.diamondCut(s, cut, address(0), "");
 
 		// init Registry facet data
 		s.bouncers[msg.sender] = true;

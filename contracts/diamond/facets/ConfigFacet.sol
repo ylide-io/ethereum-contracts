@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {YlideStorage} from "../storage/YlideStorage.sol";
-import {MailingFeed, BroadcastFeed, RegistryEntry, StakeInfo} from "../storage/DiamondStorage.sol";
-import {LibOwner} from "../libraries/LibOwner.sol";
-import {LibListMap} from "../libraries/LibListMap.sol";
+import {YlideStorage, MailingFeed, BroadcastFeed, RegistryEntry, StakeInfo} from "../YlideStorage.sol";
+import {Owner} from "../libraries/Owner.sol";
+import {ListMap} from "../libraries/ListMap.sol";
 import {IERC173} from "../interfaces/IERC173.sol";
 
 // Contains all getters for YlideStorage variables
@@ -224,7 +223,7 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		uint256 _recipientFee,
 		uint256 _broadcastFee
 	) external {
-		LibOwner.enforceIsContractOwner(s);
+		Owner.enforceIsContractOwner(s);
 		s.contentPartFee = _contentPartFee;
 		s.recipientFee = _recipientFee;
 		s.broadcastFee = _broadcastFee;
@@ -234,25 +233,25 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		uint256 _broadcastFeedCreationPrice,
 		uint256 _mailingFeedCreationPrice
 	) external {
-		LibOwner.enforceIsContractOwner(s);
+		Owner.enforceIsContractOwner(s);
 		s.broadcastFeedCreationPrice = _broadcastFeedCreationPrice;
 		s.mailingFeedCreationPrice = _mailingFeedCreationPrice;
 	}
 
 	function setYlideBeneficiary(address payable _ylideBeneficiary) external {
-		LibOwner.enforceIsContractOwner(s);
+		Owner.enforceIsContractOwner(s);
 		s.ylideBeneficiary = _ylideBeneficiary;
 	}
 
 	function setBouncer(address newBouncer, bool val) external {
-		LibOwner.enforceIsContractOwner(s);
+		Owner.enforceIsContractOwner(s);
 		if (newBouncer != address(0)) {
 			s.bouncers[newBouncer] = val;
 		}
 	}
 
 	function setBonuses(uint256 _newcomerBonus, uint256 _referrerBonus) external {
-		LibOwner.enforceIsContractOwner(s);
+		Owner.enforceIsContractOwner(s);
 		s.newcomerBonus = _newcomerBonus;
 		s.referrerBonus = _referrerBonus;
 	}
@@ -310,19 +309,19 @@ contract ConfigFacet is YlideStorage, IERC173 {
 	}
 
 	function transferOwnership(address _newOwner) external override {
-		LibOwner.enforceIsContractOwner(s);
+		Owner.enforceIsContractOwner(s);
 		address previousOwner = s.contractOwner;
 		s.contractOwner = _newOwner;
 		emit OwnershipTransferred(previousOwner, _newOwner);
 	}
 
 	function setStakeLockUpPeriod(uint256 _stakeLockUpPeriod) external {
-		LibOwner.enforceIsContractOwner(s);
+		Owner.enforceIsContractOwner(s);
 		s.stakeLockUpPeriod = _stakeLockUpPeriod;
 	}
 
 	function setYlideCommissionPercentage(uint256 _ylideCommissionPercentage) external {
-		LibOwner.enforceIsContractOwner(s);
+		Owner.enforceIsContractOwner(s);
 		s.ylideCommissionPercentage = _ylideCommissionPercentage;
 	}
 
@@ -354,7 +353,7 @@ contract ConfigFacet is YlideStorage, IERC173 {
 	}
 
 	function setPaywallDefault(PayWallArgs[] calldata args) external {
-		LibOwner.enforceIsContractOwner(s);
+		Owner.enforceIsContractOwner(s);
 		for (uint256 i; i < args.length; ) {
 			s.defaultPaywallTokenToAmount[args[i].token] = args[i].amount;
 			unchecked {
@@ -364,12 +363,12 @@ contract ConfigFacet is YlideStorage, IERC173 {
 	}
 
 	function addAllowedTokens(address[] calldata args) external {
-		LibOwner.enforceIsContractOwner(s);
-		LibListMap.addList(s.allowedTokens, args);
+		Owner.enforceIsContractOwner(s);
+		ListMap.addList(s.allowedTokens, args);
 	}
 
 	function removeAllowedTokens(address[] calldata args) external {
-		LibOwner.enforceIsContractOwner(s);
-		LibListMap.removeList(s.allowedTokens, args);
+		Owner.enforceIsContractOwner(s);
+		ListMap.removeList(s.allowedTokens, args);
 	}
 }

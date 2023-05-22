@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {YlideStorage} from "../storage/YlideStorage.sol";
+import {YlideStorage} from "../YlideStorage.sol";
 
 contract MockMailerFacet is YlideStorage {
 	uint256 public constant version = 100;

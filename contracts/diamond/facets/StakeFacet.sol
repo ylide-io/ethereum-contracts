@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {YlideStorage} from "../storage/YlideStorage.sol";
-import {StakeInfo} from "../storage/DiamondStorage.sol";
+import {YlideStorage, StakeInfo} from "../YlideStorage.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 

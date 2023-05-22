@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {YlideStorage} from "../storage/YlideStorage.sol";
-import {LibRingBufferIndex} from "../libraries/LibRingBufferIndex.sol";
-import {StakeInfo} from "../storage/DiamondStorage.sol";
+import {YlideStorage, StakeInfo} from "../YlideStorage.sol";
+import {RingBufferIndex} from "../libraries/RingBufferIndex.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -108,12 +107,12 @@ contract MailerFacet is YlideStorage {
 			uint256 currentMailingFeedJoinEventsIndex = s.recipientToMailingFeedJoinEventsIndex[
 				mailArgs.recipient
 			];
-			s.recipientToMailingFeedJoinEventsIndex[mailArgs.recipient] = LibRingBufferIndex
+			s.recipientToMailingFeedJoinEventsIndex[mailArgs.recipient] = RingBufferIndex
 				.storeBlockNumber(currentMailingFeedJoinEventsIndex, shrinkedBlock);
 			emit MailingFeedJoined(feedId, mailArgs.recipient, currentMailingFeedJoinEventsIndex);
 		}
 		uint256 currentFeed = s.feedIdToRecipientToMailIndex[feedId][mailArgs.recipient];
-		s.feedIdToRecipientToMailIndex[feedId][mailArgs.recipient] = LibRingBufferIndex
+		s.feedIdToRecipientToMailIndex[feedId][mailArgs.recipient] = RingBufferIndex
 			.storeBlockNumber(currentFeed, shrinkedBlock);
 		// write anything to map - 20k gas. think about it
 		s.feedIdToRecipientMessagesCount[feedId][mailArgs.recipient] += 1;
@@ -136,7 +135,7 @@ contract MailerFacet is YlideStorage {
 	 */
 	function _emitBroadcastPush(address sender, uint256 feedId, uint256 contentId) internal {
 		uint256 current = s.broadcastFeeds[feedId].messagesIndex;
-		s.broadcastFeeds[feedId].messagesIndex = LibRingBufferIndex.storeBlockNumber(
+		s.broadcastFeeds[feedId].messagesIndex = RingBufferIndex.storeBlockNumber(
 			current,
 			block.number / 128
 		);

@@ -30,7 +30,7 @@ describe('Diamond', () => {
 		await diamondCutFacet.deployed();
 
 		// deploy Diamond
-		const Diamond = await ethers.getContractFactory('YlideDiamond', owner);
+		const Diamond = await ethers.getContractFactory('Ylide', owner);
 		const diamond = await Diamond.deploy(owner.address, diamondCutFacet.address);
 		await diamond.deployed();
 		diamondAddress = diamond.address;

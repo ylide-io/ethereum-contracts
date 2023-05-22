@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {YlideStorage} from "../storage/YlideStorage.sol";
-import {LibDiamond} from "../libraries/LibDiamond.sol";
-import {LibOwner} from "../libraries/LibOwner.sol";
+import {YlideStorage} from "../YlideStorage.sol";
+import {Diamond} from "../libraries/Diamond.sol";
+import {Owner} from "../libraries/Owner.sol";
 import {IDiamondCut} from "../interfaces/IDiamondCut.sol";
 
 // Remember to add the loupe functions from DiamondLoupeFacet to the diamond.
@@ -21,7 +21,7 @@ contract DiamondCutFacet is YlideStorage, IDiamondCut {
 		address _init,
 		bytes calldata _calldata
 	) external override {
-		LibOwner.enforceIsContractOwner(s);
-		LibDiamond.diamondCut(s, _diamondCut, _init, _calldata);
+		Owner.enforceIsContractOwner(s);
+		Diamond.diamondCut(s, _diamondCut, _init, _calldata);
 	}
 }

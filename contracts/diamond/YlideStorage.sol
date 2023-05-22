@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {LibListMap} from "../libraries/LibListMap.sol";
+import {ListMap} from "./libraries/ListMap.sol";
 
 struct RegistryEntry {
 	uint256 previousEventsIndex;
@@ -52,7 +52,7 @@ struct FacetFunctionSelectors {
 	uint256 facetAddressPosition; // position of facetAddress in facetAddresses array
 }
 
-struct DiamondStorage {
+struct Storage {
 	//
 	// ================================
 	// ======= Diamond specific =======
@@ -96,7 +96,7 @@ struct DiamondStorage {
 	// TODO: rewrite to registrar
 	mapping(address => mapping(address => uint256)) addressToTokenToAmount;
 	// globally allowed tokens by ylide
-	LibListMap._address allowedTokens;
+	ListMap._address allowedTokens;
 	mapping(address => uint256) defaultPaywallTokenToAmount;
 	// user specific settings for pay for attention
 	mapping(uint256 => mapping(address => uint256)) recipientToPaywallTokenToAmount;
@@ -108,4 +108,57 @@ struct DiamondStorage {
 	// Percentages denominated in 1e2. 100% = 10000 wei || 0.27% = 27 wei
 	uint256 ylideCommissionPercentage;
 	mapping(address => uint256) registrarToCommissionPercentage;
+}
+
+abstract contract YlideStorage {
+	Storage internal s;
+
+	// Registry events
+	event KeyAttached(
+		address indexed addr,
+		uint256 publicKey,
+		uint32 keyVersion,
+		address registrar,
+		uint256 previousEventsIndex
+	);
+
+	// Config events
+	event MailingFeedOwnershipTransferred(uint256 indexed feedId, address newOwner);
+	event BroadcastFeedOwnershipTransferred(uint256 indexed feedId, address newOwner);
+	event MailingFeedBeneficiaryChanged(uint256 indexed feedId, address newBeneficiary);
+	event BroadcastFeedBeneficiaryChanged(uint256 indexed feedId, address newBeneficiary);
+	event BroadcastFeedPublicityChanged(uint256 indexed feedId, bool isPublic);
+	event BroadcastFeedWriterChange(uint256 indexed feedId, address indexed writer, bool status);
+	event MailingFeedCreated(uint256 indexed feedId, address indexed creator);
+	event BroadcastFeedCreated(uint256 indexed feedId, address indexed creator);
+
+	// Mailer events
+	event MailPush(
+		uint256 indexed recipient,
+		uint256 indexed feedId,
+		address sender,
+		uint256 contentId,
+		uint256 previousFeedEventsIndex,
+		bytes key,
+		bytes supplement,
+		bool paidForAttention
+	);
+	event BroadcastPush(
+		address indexed sender,
+		uint256 indexed feedId,
+		uint256 contentId,
+		uint256 previousFeedEventsIndex
+	);
+	event MessageContent(
+		uint256 indexed contentId,
+		address indexed sender,
+		uint16 parts,
+		uint16 partIdx,
+		bytes content
+	);
+	event MailingFeedJoined(
+		uint256 indexed feedId,
+		uint256 indexed newParticipant,
+		uint256 previousFeedJoinEventsIndex
+	);
 }

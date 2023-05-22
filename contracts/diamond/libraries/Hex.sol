@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-library LibHex {
+library Hex {
 	bytes16 private constant _SYMBOLS = "0123456789abcdef";
 
 	function uint256ToHex(bytes32 buffer) internal pure returns (bytes memory) {

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {YlideStorage} from "../storage/YlideStorage.sol";
-import {RegistryEntry} from "../storage/DiamondStorage.sol";
-import {LibHex} from "../libraries/LibHex.sol";
-import {LibRingBufferIndex} from "../libraries/LibRingBufferIndex.sol";
+import {YlideStorage, RegistryEntry} from "../YlideStorage.sol";
+import {Hex} from "../libraries/Hex.sol";
+import {RingBufferIndex} from "../libraries/RingBufferIndex.sol";
 
 contract RegistryFacet is YlideStorage {
 	// ================================
@@ -42,16 +41,16 @@ contract RegistryFacet is YlideStorage {
 		bytes memory _msg = abi.encodePacked(
 			"I authorize Ylide Faucet to publish my public key on my behalf to eliminate gas costs on my transaction for five minutes.\n\n",
 			"Public key: 0x",
-			LibHex.uint256ToHex(publicKey),
+			Hex.uint256ToHex(publicKey),
 			"\n",
 			"Registrar: 0x",
-			LibHex.uint256ToHex(bytes32(uint256(uint160(registrar)))),
+			Hex.uint256ToHex(bytes32(uint256(uint160(registrar)))),
 			"\n",
 			"Chain ID: 0x",
-			LibHex.uint256ToHex(bytes32(block.chainid)),
+			Hex.uint256ToHex(bytes32(block.chainid)),
 			"\n",
 			"Timestamp: 0x",
-			LibHex.uint64ToHex(bytes8(timestampLock))
+			Hex.uint64ToHex(bytes8(timestampLock))
 		);
 		bytes32 prefixedHashMessage = keccak256(abi.encodePacked(prefix, _msg));
 		address signer = ecrecover(prefixedHashMessage, _v, _r, _s);
@@ -66,7 +65,7 @@ contract RegistryFacet is YlideStorage {
 	) internal {
 		uint256 index = 0;
 		if (s.addressToPublicKey[addr].keyVersion != 0) {
-			index = LibRingBufferIndex.storeBlockNumber(
+			index = RingBufferIndex.storeBlockNumber(
 				s.addressToPublicKey[addr].previousEventsIndex,
 				s.addressToPublicKey[addr].block / 128
 			);
