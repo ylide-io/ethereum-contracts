@@ -263,9 +263,9 @@ describe('Diamond', () => {
 		expect(await configFacet.isAllowedToken(erc20_2.address)).equal(true);
 		const user2PaywallInfo = await configFacet.getRecipientPaywallInfo(user2.address, user1.address);
 		expect(user2PaywallInfo[0].token).equal(erc20_2.address);
-		expect(user2PaywallInfo[0].amount).equal(2000);
+		expect(user2PaywallInfo[0].amount).equal(2200);
 		expect(user2PaywallInfo[1].token).equal(erc20.address);
-		expect(user2PaywallInfo[1].amount).equal(1000);
+		expect(user2PaywallInfo[1].amount).equal(1100);
 		const ownerPaywallInfo = await configFacet.getRecipientPaywallInfo(owner.address, user1.address);
 		expect(ownerPaywallInfo[0].token).equal(erc20_2.address);
 		expect(ownerPaywallInfo[0].amount).equal(0);
@@ -363,9 +363,9 @@ describe('Diamond', () => {
 		expect(await configFacet.isAllowedToken(erc20_2.address)).equal(true);
 		const user2PaywallInfo = await configFacet.getRecipientPaywallInfo(user2.address, user1.address);
 		expect(user2PaywallInfo[0].token).equal(erc20_2.address);
-		expect(user2PaywallInfo[0].amount).equal(2000);
+		expect(user2PaywallInfo[0].amount).equal(2200);
 		expect(user2PaywallInfo[1].token).equal(erc20.address);
-		expect(user2PaywallInfo[1].amount).equal(1000);
+		expect(user2PaywallInfo[1].amount).equal(1100);
 		const ownerPaywallInfo = await configFacet.getRecipientPaywallInfo(owner.address, user1.address);
 		expect(ownerPaywallInfo[0].token).equal(erc20_2.address);
 		expect(ownerPaywallInfo[0].amount).equal(0);
@@ -580,7 +580,7 @@ describe('Diamond', () => {
 		expect(user2PaywallInfo[0].token).equal(erc20_2.address);
 		expect(user2PaywallInfo[0].amount).equal(0);
 		expect(user2PaywallInfo[1].token).equal(erc20.address);
-		expect(user2PaywallInfo[1].amount).equal(100);
+		expect(user2PaywallInfo[1].amount).equal(110);
 
 		await erc20.connect(user2).mint(1100);
 		const user2Balance = await erc20.balanceOf(user2.address);
@@ -644,7 +644,7 @@ describe('Diamond', () => {
 		expect(user2PaywallInfo[0].token).equal(erc20_2.address);
 		expect(user2PaywallInfo[0].amount).equal(0);
 		expect(user2PaywallInfo[1].token).equal(erc20.address);
-		expect(user2PaywallInfo[1].amount).equal(200);
+		expect(user2PaywallInfo[1].amount).equal(220);
 
 		await erc20.connect(user2).mint(1100);
 		const user2Balance = await erc20.balanceOf(user2.address);
