@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 import {YlideStorage} from "../storage/YlideStorage.sol";
-import {MailingFeed, BroadcastFeed, RegistryEntry, TokenInfo} from "../storage/DiamondStorage.sol";
+import {MailingFeed, BroadcastFeed, RegistryEntry, StakeInfo} from "../storage/DiamondStorage.sol";
 import {LibOwner} from "../libraries/LibOwner.sol";
 import {LibListMap} from "../libraries/LibListMap.sol";
 import {IERC173} from "../interfaces/IERC173.sol";
@@ -165,11 +165,11 @@ contract ConfigFacet is YlideStorage, IERC173 {
 			s.recipientToWhitelistedSender[uint256(sha256(abi.encode(user)))][user];
 	}
 
-	function contentIdToRecipientToTokenInfo(
+	function contentIdToRecipientToStakeInfo(
 		uint256 contentId,
 		uint256 recipient
-	) external view returns (TokenInfo memory) {
-		return s.contentIdToRecipientToTokenInfo[contentId][recipient];
+	) external view returns (StakeInfo memory) {
+		return s.contentIdToRecipientToStakeInfo[contentId][recipient];
 	}
 
 	function stakeLockUpPeriod() external view returns (uint256) {

@@ -313,10 +313,10 @@ describe('Diamond', () => {
 
 		const lockupPeriod = await configFacet.stakeLockUpPeriod();
 
-		const stakeInfo = await configFacet.contentIdToRecipientToTokenInfo(contentId, user2.address);
+		const stakeInfo = await configFacet.contentIdToRecipientToStakeInfo(contentId, user2.address);
 		expect(stakeInfo.amount).equal(1000);
 		expect(stakeInfo.token).equal(erc20.address);
-		expect(stakeInfo.withdrawn).equal(false);
+		expect(stakeInfo.status).equal(1);
 		expect(stakeInfo.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
 		expect(stakeInfo.ylideCommission).equal(40);
 		expect(stakeInfo.registrarCommission).equal(60);
@@ -341,10 +341,10 @@ describe('Diamond', () => {
 		expect(await erc20.balanceOf(user2.address)).equal(0);
 		expect(await erc20.balanceOf(diamondAddress)).equal(0);
 
-		const stakeInfoAfter = await configFacet.contentIdToRecipientToTokenInfo(contentId, user2.address);
+		const stakeInfoAfter = await configFacet.contentIdToRecipientToStakeInfo(contentId, user2.address);
 		expect(stakeInfoAfter.amount).equal(1000);
 		expect(stakeInfoAfter.token).equal(erc20.address);
-		expect(stakeInfoAfter.withdrawn).equal(true);
+		expect(stakeInfoAfter.status).equal(2);
 		expect(stakeInfoAfter.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
 		expect(stakeInfoAfter.ylideCommission).equal(40);
 		expect(stakeInfoAfter.registrarCommission).equal(60);
@@ -412,10 +412,10 @@ describe('Diamond', () => {
 
 		const lockupPeriod = await configFacet.stakeLockUpPeriod();
 
-		const stakeInfo = await configFacet.contentIdToRecipientToTokenInfo(contentId, user2.address);
+		const stakeInfo = await configFacet.contentIdToRecipientToStakeInfo(contentId, user2.address);
 		expect(stakeInfo.amount).equal(1000);
 		expect(stakeInfo.token).equal(erc20.address);
-		expect(stakeInfo.withdrawn).equal(false);
+		expect(stakeInfo.status).equal(1);
 		expect(stakeInfo.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
 		expect(stakeInfo.ylideCommission).equal(40);
 		expect(stakeInfo.registrarCommission).equal(60);
@@ -546,10 +546,10 @@ describe('Diamond', () => {
 			}
 		}
 
-		const stakeInfo = await configFacet.contentIdToRecipientToTokenInfo(contentId, user2.address);
+		const stakeInfo = await configFacet.contentIdToRecipientToStakeInfo(contentId, user2.address);
 		expect(stakeInfo.amount).equal(0);
 		expect(stakeInfo.token).equal(ethers.constants.AddressZero);
-		expect(stakeInfo.withdrawn).equal(false);
+		expect(stakeInfo.status).equal(0);
 		expect(stakeInfo.stakeBlockedUntil).equal(0);
 		expect(stakeInfo.ylideCommission).equal(0);
 		expect(stakeInfo.registrarCommission).equal(0);
@@ -617,10 +617,10 @@ describe('Diamond', () => {
 
 		const lockupPeriod = await configFacet.stakeLockUpPeriod();
 
-		const stakeInfo = await configFacet.contentIdToRecipientToTokenInfo(contentId, user1.address);
+		const stakeInfo = await configFacet.contentIdToRecipientToStakeInfo(contentId, user1.address);
 		expect(stakeInfo.amount).equal(100);
 		expect(stakeInfo.token).equal(erc20.address);
-		expect(stakeInfo.withdrawn).equal(false);
+		expect(stakeInfo.status).equal(1);
 		expect(stakeInfo.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
 		expect(stakeInfo.ylideCommission).equal(4);
 		expect(stakeInfo.registrarCommission).equal(6);
@@ -680,10 +680,10 @@ describe('Diamond', () => {
 
 		const lockupPeriod = await configFacet.stakeLockUpPeriod();
 
-		const stakeInfo = await configFacet.contentIdToRecipientToTokenInfo(contentId, user1.address);
+		const stakeInfo = await configFacet.contentIdToRecipientToStakeInfo(contentId, user1.address);
 		expect(stakeInfo.amount).equal(200);
 		expect(stakeInfo.token).equal(erc20.address);
-		expect(stakeInfo.withdrawn).equal(false);
+		expect(stakeInfo.status).equal(1);
 		expect(stakeInfo.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
 		expect(stakeInfo.ylideCommission).equal(8);
 		expect(stakeInfo.registrarCommission).equal(12);

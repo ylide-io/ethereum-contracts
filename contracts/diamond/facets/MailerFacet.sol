@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 
 import {YlideStorage} from "../storage/YlideStorage.sol";
 import {LibRingBufferIndex} from "../libraries/LibRingBufferIndex.sol";
-import {TokenInfo} from "../storage/DiamondStorage.sol";
+import {StakeInfo} from "../storage/DiamondStorage.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -193,7 +193,7 @@ contract MailerFacet is YlideStorage {
 		}
 
 		// if user already paid for this content - revert
-		if (s.contentIdToRecipientToTokenInfo[contentId][mailArgs.recipient].token != address(0)) {
+		if (s.contentIdToRecipientToStakeInfo[contentId][mailArgs.recipient].token != address(0)) {
 			return (false, false);
 		}
 
@@ -217,11 +217,11 @@ contract MailerFacet is YlideStorage {
 			s.addressToPublicKey[msg.sender].registrar
 		] * amount) / 10000;
 
-		s.contentIdToRecipientToTokenInfo[contentId][mailArgs.recipient] = TokenInfo({
+		s.contentIdToRecipientToStakeInfo[contentId][mailArgs.recipient] = StakeInfo({
 			amount: amount,
 			token: mailArgs.token,
 			sender: msg.sender,
-			withdrawn: false,
+			status: 1,
 			stakeBlockedUntil: block.timestamp + s.stakeLockUpPeriod,
 			ylideCommission: ylideCommission,
 			registrarCommission: registrarCommission

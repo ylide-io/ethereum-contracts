@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 import {YlideStorage} from "../storage/YlideStorage.sol";
-import {TokenInfo} from "../storage/DiamondStorage.sol";
+import {StakeInfo} from "../storage/DiamondStorage.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -44,23 +44,23 @@ contract StakeFacet is YlideStorage {
 			revert NoRegistrar();
 		}
 		for (uint256 i; i < contentIds.length; ) {
-			TokenInfo storage tokenInfo = s.contentIdToRecipientToTokenInfo[contentIds[i]][
+			StakeInfo storage stakeInfo = s.contentIdToRecipientToStakeInfo[contentIds[i]][
 				uint160(msg.sender)
 			];
-			if (tokenInfo.token == address(0) || tokenInfo.withdrawn) {
+			if (stakeInfo.token == address(0) || stakeInfo.status > 1) {
 				revert NothingToWithdraw();
 			}
-			uint256 interfaceCommission = (tokenInfo.amount * args.interfaceCommission) / 10000;
-			uint256 recipientShare = tokenInfo.amount - interfaceCommission;
+			uint256 interfaceCommission = (stakeInfo.amount * args.interfaceCommission) / 10000;
+			uint256 recipientShare = stakeInfo.amount - interfaceCommission;
 
-			tokenInfo.withdrawn = true;
-			s.addressToTokenToAmount[args.interfaceAddress][tokenInfo.token] += interfaceCommission;
+			stakeInfo.status = 3;
+			s.addressToTokenToAmount[args.interfaceAddress][stakeInfo.token] += interfaceCommission;
 
-			s.addressToTokenToAmount[s.ylideBeneficiary][tokenInfo.token] += tokenInfo
+			s.addressToTokenToAmount[s.ylideBeneficiary][stakeInfo.token] += stakeInfo
 				.ylideCommission;
-			s.addressToTokenToAmount[registrar][tokenInfo.token] += tokenInfo.registrarCommission;
+			s.addressToTokenToAmount[registrar][stakeInfo.token] += stakeInfo.registrarCommission;
 
-			IERC20(tokenInfo.token).safeTransfer(msg.sender, recipientShare);
+			IERC20(stakeInfo.token).safeTransfer(msg.sender, recipientShare);
 			unchecked {
 				i++;
 			}
@@ -80,22 +80,22 @@ contract StakeFacet is YlideStorage {
 	// called by sender of message
 	function cancel(CancelArgs[] calldata args) external {
 		for (uint256 i; i < args.length; ) {
-			TokenInfo storage tokenInfo = s.contentIdToRecipientToTokenInfo[args[i].contentId][
+			StakeInfo storage stakeInfo = s.contentIdToRecipientToStakeInfo[args[i].contentId][
 				uint160(args[i].recipient)
 			];
-			if (tokenInfo.token == address(0) || tokenInfo.withdrawn) {
+			if (stakeInfo.token == address(0) || stakeInfo.status > 1) {
 				revert NothingToWithdraw();
 			}
-			if (tokenInfo.sender != msg.sender) {
+			if (stakeInfo.sender != msg.sender) {
 				revert NotSender();
 			}
-			if (tokenInfo.stakeBlockedUntil >= block.timestamp) {
+			if (stakeInfo.stakeBlockedUntil >= block.timestamp) {
 				revert StakeLockUp();
 			}
-			tokenInfo.withdrawn = true;
-			IERC20(tokenInfo.token).safeTransfer(
-				tokenInfo.sender,
-				tokenInfo.amount + tokenInfo.ylideCommission + tokenInfo.registrarCommission
+			stakeInfo.status = 2;
+			IERC20(stakeInfo.token).safeTransfer(
+				stakeInfo.sender,
+				stakeInfo.amount + stakeInfo.ylideCommission + stakeInfo.registrarCommission
 			);
 			unchecked {
 				i++;

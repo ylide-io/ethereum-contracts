@@ -29,11 +29,14 @@ struct MailingFeed {
 	uint256 recipientFee;
 }
 
-struct TokenInfo {
+struct StakeInfo {
 	uint256 amount;
 	address token;
 	address sender;
-	bool withdrawn;
+	// 1 - staked
+	// 2 - canceled
+	// 3 - claimed
+	uint16 status;
 	uint256 stakeBlockedUntil;
 	uint256 ylideCommission;
 	uint256 registrarCommission;
@@ -99,7 +102,7 @@ struct DiamondStorage {
 	mapping(uint256 => mapping(address => uint256)) recipientToPaywallTokenToAmount;
 	mapping(uint256 => mapping(address => bool)) recipientToWhitelistedSender;
 	// info on staked tokens
-	mapping(uint256 => mapping(uint256 => TokenInfo)) contentIdToRecipientToTokenInfo;
+	mapping(uint256 => mapping(uint256 => StakeInfo)) contentIdToRecipientToStakeInfo;
 	// config of staking
 	uint256 stakeLockUpPeriod;
 	// Percentages denominated in 1e2. 100% = 10000 wei || 0.27% = 27 wei
