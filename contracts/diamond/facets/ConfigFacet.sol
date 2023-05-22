@@ -180,8 +180,8 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		return s.ylideCommissionPercentage;
 	}
 
-	function referrerToCommissionPercentage(address referrer) external view returns (uint256) {
-		return s.referrerToCommissionPercentage[referrer];
+	function registrarToCommissionPercentage(address referrer) external view returns (uint256) {
+		return s.registrarToCommissionPercentage[referrer];
 	}
 
 	function getRecipientPaywallInfo(
@@ -201,7 +201,7 @@ contract ConfigFacet is YlideStorage, IERC173 {
 				amount = userAmount;
 			}
 			uint256 ylideCommission = (s.ylideCommissionPercentage * amount) / 10000;
-			uint256 referrerCommission = (s.referrerToCommissionPercentage[
+			uint256 referrerCommission = (s.registrarToCommissionPercentage[
 				s.addressToPublicKey[address(uint160(recipient))].registrar
 			] * amount) / 10000;
 			payWallOptions[i] = PayWallArgs(
@@ -326,8 +326,8 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		s.ylideCommissionPercentage = _ylideCommissionPercentage;
 	}
 
-	function setReferrerToCommissionPercentage(uint256 commissionPercentage) external {
-		s.referrerToCommissionPercentage[msg.sender] = commissionPercentage;
+	function setRegistrarToCommissionPercentage(uint256 commissionPercentage) external {
+		s.registrarToCommissionPercentage[msg.sender] = commissionPercentage;
 	}
 
 	function setPaywall(PayWallArgs[] calldata args) external {

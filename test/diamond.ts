@@ -10,7 +10,7 @@ describe('Diamond', () => {
 	let owner: SignerWithAddress;
 	let user1: SignerWithAddress;
 	let user2: SignerWithAddress;
-	let referrer: SignerWithAddress;
+	let registrar: SignerWithAddress;
 	let referrerInterface: SignerWithAddress;
 	let erc20: MockERC20;
 	let erc20_2: MockERC20;
@@ -18,7 +18,7 @@ describe('Diamond', () => {
 	let feedId: string;
 
 	before(async () => {
-		[owner, user1, user2, referrer, referrerInterface] = await ethers.getSigners();
+		[owner, user1, user2, registrar, referrerInterface] = await ethers.getSigners();
 	});
 
 	it('should deploy diamond and facets', async () => {
@@ -92,13 +92,12 @@ describe('Diamond', () => {
 		const registryFacet = await ethers.getContractAt('RegistryFacet', diamondAddress);
 		const publicKey = BigNumber.from(ethers.utils.randomBytes(32));
 		const keyVersion = 1;
-		const registrar = referrer.address;
-		await registryFacet.connect(user1).attachPublicKey(publicKey, keyVersion, registrar);
-		await registryFacet.connect(user2).attachPublicKey(publicKey, keyVersion, registrar);
+		await registryFacet.connect(user1).attachPublicKey(publicKey, keyVersion, registrar.address);
+		await registryFacet.connect(user2).attachPublicKey(publicKey, keyVersion, registrar.address);
 		const registryInfo = await configFacet.addressToPublicKey(user1.address);
 		expect(registryInfo.publicKey).equal(publicKey);
 		expect(registryInfo.keyVersion).equal(keyVersion);
-		expect(registryInfo.registrar).equal(registrar);
+		expect(registryInfo.registrar).equal(registrar.address);
 	});
 
 	it('should create mailing feed', async () => {
@@ -243,12 +242,12 @@ describe('Diamond', () => {
 		await configFacet.connect(owner).setStakeLockUpPeriod(100);
 		// 4% ylide commission
 		await configFacet.connect(owner).setYlideCommissionPercentage(400);
-		// 6% referrer commission
-		await configFacet.connect(referrer).setReferrerToCommissionPercentage(600);
+		// 6% registrar commission
+		await configFacet.connect(registrar).setRegistrarToCommissionPercentage(600);
 
 		expect(await configFacet.stakeLockUpPeriod()).equal(100);
 		expect(await configFacet.ylideCommissionPercentage()).equal(400);
-		expect(await configFacet.referrerToCommissionPercentage(referrer.address)).equal(600);
+		expect(await configFacet.registrarToCommissionPercentage(registrar.address)).equal(600);
 	});
 
 	it('should send bulk mail with pay for attention (default = 0) + cancel by sender', async () => {
@@ -320,7 +319,7 @@ describe('Diamond', () => {
 		expect(stakeInfo.withdrawn).equal(false);
 		expect(stakeInfo.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
 		expect(stakeInfo.ylideCommission).equal(40);
-		expect(stakeInfo.referrerCommission).equal(60);
+		expect(stakeInfo.registrarCommission).equal(60);
 
 		await expect(
 			stakeFacet.connect(user1).cancel([{ contentId: contentId, recipient: owner.address }]),
@@ -348,7 +347,7 @@ describe('Diamond', () => {
 		expect(stakeInfoAfter.withdrawn).equal(true);
 		expect(stakeInfoAfter.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
 		expect(stakeInfoAfter.ylideCommission).equal(40);
-		expect(stakeInfoAfter.referrerCommission).equal(60);
+		expect(stakeInfoAfter.registrarCommission).equal(60);
 	});
 
 	it('should send bulk mail with pay for attention (default = 0) + claim', async () => {
@@ -419,7 +418,7 @@ describe('Diamond', () => {
 		expect(stakeInfo.withdrawn).equal(false);
 		expect(stakeInfo.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
 		expect(stakeInfo.ylideCommission).equal(40);
-		expect(stakeInfo.referrerCommission).equal(60);
+		expect(stakeInfo.registrarCommission).equal(60);
 
 		await expect(
 			stakeFacet.connect(owner)['claim(uint256[],(address,uint256))']([contentId], {
@@ -455,11 +454,11 @@ describe('Diamond', () => {
 		expect(await erc20.balanceOf(diamondAddress)).equal(500);
 		expect(await configFacet.addressToTokenToAmount(referrerInterface.address, erc20.address)).equal(400);
 		expect(await configFacet.addressToTokenToAmount(owner.address, erc20.address)).equal(40);
-		expect(await configFacet.addressToTokenToAmount(referrer.address, erc20.address)).equal(60);
+		expect(await configFacet.addressToTokenToAmount(registrar.address, erc20.address)).equal(60);
 
 		await stakeFacet.connect(referrerInterface)['claim(address)'](erc20.address);
 		await stakeFacet.connect(owner)['claim(address)'](erc20.address);
-		await stakeFacet.connect(referrer)['claim(address)'](erc20.address);
+		await stakeFacet.connect(registrar)['claim(address)'](erc20.address);
 
 		await expect(
 			stakeFacet.connect(referrerInterface)['claim(address)'](erc20.address),
@@ -468,19 +467,19 @@ describe('Diamond', () => {
 			stakeFacet,
 			'NothingToWithdraw',
 		);
-		await expect(stakeFacet.connect(referrer)['claim(address)'](erc20.address)).to.be.revertedWithCustomError(
+		await expect(stakeFacet.connect(registrar)['claim(address)'](erc20.address)).to.be.revertedWithCustomError(
 			stakeFacet,
 			'NothingToWithdraw',
 		);
 
 		expect(await configFacet.addressToTokenToAmount(referrerInterface.address, erc20.address)).equal(0);
 		expect(await configFacet.addressToTokenToAmount(owner.address, erc20.address)).equal(0);
-		expect(await configFacet.addressToTokenToAmount(referrer.address, erc20.address)).equal(0);
+		expect(await configFacet.addressToTokenToAmount(registrar.address, erc20.address)).equal(0);
 
 		expect(await erc20.balanceOf(diamondAddress)).equal(0);
 		expect(await erc20.balanceOf(referrerInterface.address)).equal(400);
 		expect(await erc20.balanceOf(owner.address)).equal(40);
-		expect(await erc20.balanceOf(referrer.address)).equal(60);
+		expect(await erc20.balanceOf(registrar.address)).equal(60);
 	});
 
 	it('should whitelist sender and send bulk mail without pay for attention (default = 0)', async () => {
@@ -553,7 +552,7 @@ describe('Diamond', () => {
 		expect(stakeInfo.withdrawn).equal(false);
 		expect(stakeInfo.stakeBlockedUntil).equal(0);
 		expect(stakeInfo.ylideCommission).equal(0);
-		expect(stakeInfo.referrerCommission).equal(0);
+		expect(stakeInfo.registrarCommission).equal(0);
 
 		await expect(
 			stakeFacet.connect(user2)['claim(uint256[],(address,uint256))']([contentId], {
@@ -624,7 +623,7 @@ describe('Diamond', () => {
 		expect(stakeInfo.withdrawn).equal(false);
 		expect(stakeInfo.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
 		expect(stakeInfo.ylideCommission).equal(4);
-		expect(stakeInfo.referrerCommission).equal(6);
+		expect(stakeInfo.registrarCommission).equal(6);
 	});
 
 	it('should send bulk mail overriding default pay for attention with custom', async () => {
@@ -687,6 +686,6 @@ describe('Diamond', () => {
 		expect(stakeInfo.withdrawn).equal(false);
 		expect(stakeInfo.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
 		expect(stakeInfo.ylideCommission).equal(8);
-		expect(stakeInfo.referrerCommission).equal(12);
+		expect(stakeInfo.registrarCommission).equal(12);
 	});
 });

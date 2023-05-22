@@ -36,7 +36,7 @@ struct TokenInfo {
 	bool withdrawn;
 	uint256 stakeBlockedUntil;
 	uint256 ylideCommission;
-	uint256 referrerCommission;
+	uint256 registrarCommission;
 }
 
 struct FacetAddressAndPosition {
@@ -104,5 +104,5 @@ struct DiamondStorage {
 	uint256 stakeLockUpPeriod;
 	// Percentages denominated in 1e2. 100% = 10000 wei || 0.27% = 27 wei
 	uint256 ylideCommissionPercentage;
-	mapping(address => uint256) referrerToCommissionPercentage;
+	mapping(address => uint256) registrarToCommissionPercentage;
 }

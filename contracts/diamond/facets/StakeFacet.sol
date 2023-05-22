@@ -58,7 +58,7 @@ contract StakeFacet is YlideStorage {
 
 			s.addressToTokenToAmount[s.ylideBeneficiary][tokenInfo.token] += tokenInfo
 				.ylideCommission;
-			s.addressToTokenToAmount[registrar][tokenInfo.token] += tokenInfo.referrerCommission;
+			s.addressToTokenToAmount[registrar][tokenInfo.token] += tokenInfo.registrarCommission;
 
 			IERC20(tokenInfo.token).safeTransfer(msg.sender, recipientShare);
 			unchecked {
@@ -95,7 +95,7 @@ contract StakeFacet is YlideStorage {
 			tokenInfo.withdrawn = true;
 			IERC20(tokenInfo.token).safeTransfer(
 				tokenInfo.sender,
-				tokenInfo.amount + tokenInfo.ylideCommission + tokenInfo.referrerCommission
+				tokenInfo.amount + tokenInfo.ylideCommission + tokenInfo.registrarCommission
 			);
 			unchecked {
 				i++;

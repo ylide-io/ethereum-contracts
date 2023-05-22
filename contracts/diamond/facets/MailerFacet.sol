@@ -213,7 +213,7 @@ contract MailerFacet is YlideStorage {
 			amount = userAmount;
 		}
 		uint256 ylideCommission = (s.ylideCommissionPercentage * amount) / 10000;
-		uint256 referrerCommission = (s.referrerToCommissionPercentage[
+		uint256 registrarCommission = (s.registrarToCommissionPercentage[
 			s.addressToPublicKey[msg.sender].registrar
 		] * amount) / 10000;
 
@@ -224,12 +224,12 @@ contract MailerFacet is YlideStorage {
 			withdrawn: false,
 			stakeBlockedUntil: block.timestamp + s.stakeLockUpPeriod,
 			ylideCommission: ylideCommission,
-			referrerCommission: referrerCommission
+			registrarCommission: registrarCommission
 		});
 		IERC20(mailArgs.token).safeTransferFrom(
 			msg.sender,
 			address(this),
-			amount + ylideCommission + referrerCommission
+			amount + ylideCommission + registrarCommission
 		);
 		return (true, true);
 	}
