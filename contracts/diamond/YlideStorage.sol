@@ -188,7 +188,12 @@ abstract contract YlideStorage {
 		uint256 registrarCommission
 	);
 
-	event Withdrawn(address indexed user, address indexed token, uint256 amount);
+	event StakeCancelled(
+		uint256 indexed contentId,
+		address indexed token,
+		uint256 indexed recipient,
+		uint256 amount
+	);
 
-	event Cancelled(uint256 indexed contentId, address sender, address token, uint256 wholeAmount);
+	event WithdrawnRewards(address indexed user, address indexed token, uint256 amount);
 }

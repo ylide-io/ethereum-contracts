@@ -20,7 +20,7 @@ contract StakeFacet is YlideStorage {
 
 	struct CancelArgs {
 		uint256 contentId;
-		address recipient;
+		uint256 recipient;
 	}
 
 	// ================================
@@ -79,22 +79,11 @@ contract StakeFacet is YlideStorage {
 		}
 	}
 
-	// Called by ylide || registrar || recipient interface
-	function withdraw(address token) external {
-		uint256 amount = s.addressToTokenToAmount[msg.sender][token];
-		if (amount == 0) {
-			revert NothingToWithdraw();
-		}
-		s.addressToTokenToAmount[msg.sender][token] = 0;
-		IERC20(token).safeTransfer(msg.sender, amount);
-		emit Withdrawn(msg.sender, token, amount);
-	}
-
 	// called by sender of message
 	function cancel(CancelArgs[] calldata args) external {
 		for (uint256 i; i < args.length; ) {
 			StakeInfo storage stakeInfo = s.contentIdToRecipientToStakeInfo[args[i].contentId][
-				uint160(args[i].recipient)
+				args[i].recipient
 			];
 			if (stakeInfo.status != StakeStatus.Staked) {
 				revert NothingToWithdraw();
@@ -110,10 +99,21 @@ contract StakeFacet is YlideStorage {
 				stakeInfo.ylideCommission +
 				stakeInfo.registrarCommission;
 			IERC20(stakeInfo.token).safeTransfer(stakeInfo.sender, wholeAmount);
-			emit Cancelled(args[i].contentId, msg.sender, stakeInfo.token, wholeAmount);
+			emit StakeCancelled(args[i].contentId, stakeInfo.token, args[i].recipient, wholeAmount);
 			unchecked {
 				i++;
 			}
 		}
+	}
+
+	// Called by ylide || registrar || recipient interface
+	function withdraw(address token) external {
+		uint256 amount = s.addressToTokenToAmount[msg.sender][token];
+		if (amount == 0) {
+			revert NothingToWithdraw();
+		}
+		s.addressToTokenToAmount[msg.sender][token] = 0;
+		IERC20(token).safeTransfer(msg.sender, amount);
+		emit WithdrawnRewards(msg.sender, token, amount);
 	}
 }
