@@ -67,7 +67,7 @@ contract StakeFacet is YlideStorage {
 	}
 
 	// Called by ylide || registrar || recipient interface
-	function claim(address token) external {
+	function withdraw(address token) external {
 		uint256 amount = s.addressToTokenToAmount[msg.sender][token];
 		if (amount == 0) {
 			revert NothingToWithdraw();

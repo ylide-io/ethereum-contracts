@@ -174,42 +174,37 @@ contract MailerFacet is YlideStorage {
 	function _payForAttention(
 		uint256 contentId,
 		MailArgs calldata mailArgs
-	) internal returns (bool paidForAttention, bool success) {
+	) internal returns (bool paidForAttention) {
 		// TODO: we should ensure that sending message to yourself is always free
 		// white list oneself while setting up the paywall?
 
 		// if protocol has no pay wall tokens - allow sending for free
 		if (s.allowedTokens.list.length == 0) {
-			return (false, true);
+			return false;
 		}
 		// if sender is whitelisted - allow sending for free
 		if (s.recipientToWhitelistedSender[mailArgs.recipient][msg.sender]) {
-			return (false, true);
+			return false;
 		}
 		// user tries to trick us with wrong token - revert
 		if (!s.allowedTokens.includes[mailArgs.token]) {
-			return (false, false);
+			revert PayForAttentionFailed();
 		}
 
 		// if user already paid for this content - revert
 		if (s.contentIdToRecipientToStakeInfo[contentId][mailArgs.recipient].token != address(0)) {
-			return (false, false);
+			revert PayForAttentionFailed();
 		}
 
-		uint256 amount;
-		uint256 userAmount = s.recipientToPaywallTokenToAmount[mailArgs.recipient][mailArgs.token];
+		uint256 amount = s.recipientToPaywallTokenToAmount[mailArgs.recipient][mailArgs.token];
 		// if user has no custom paywall
-		if (userAmount == 0) {
-			uint256 defaultAmount = s.defaultPaywallTokenToAmount[mailArgs.token];
-			// if protocol has no default paywall - allow sending for free
-			if (defaultAmount == 0) {
-				return (false, true);
-			}
+		if (amount == 0) {
 			// protocol has default paywall - use it
-			amount = defaultAmount;
-		} else {
-			// set user custom paywall
-			amount = userAmount;
+			amount = s.defaultPaywallTokenToAmount[mailArgs.token];
+			// if protocol has no default paywall - allow sending for free
+			if (amount == 0) {
+				return false;
+			}
 		}
 		uint256 ylideCommission = (s.ylideCommissionPercentage * amount) / 10000;
 		uint256 registrarCommission = (s.registrarToCommissionPercentage[
@@ -230,7 +225,7 @@ contract MailerFacet is YlideStorage {
 			address(this),
 			amount + ylideCommission + registrarCommission
 		);
-		return (true, true);
+		return true;
 	}
 
 	// ================================
@@ -248,10 +243,7 @@ contract MailerFacet is YlideStorage {
 		emit MessageContent(contentId, msg.sender, 1, 0, content);
 
 		for (uint i = 0; i < args.length; i++) {
-			(bool paidForAttention, bool success) = _payForAttention(contentId, args[i]);
-			if (!success) {
-				revert PayForAttentionFailed();
-			}
+			bool paidForAttention = _payForAttention(contentId, args[i]);
 			_emitMailPush(feedId, msg.sender, contentId, args[i], paidForAttention);
 		}
 
@@ -278,10 +270,7 @@ contract MailerFacet is YlideStorage {
 		);
 
 		for (uint i = 0; i < args.length; i++) {
-			(bool paidForAttention, bool success) = _payForAttention(contentId, args[i]);
-			if (!success) {
-				revert PayForAttentionFailed();
-			}
+			bool paidForAttention = _payForAttention(contentId, args[i]);
 			_emitMailPush(feedId, msg.sender, contentId, args[i], paidForAttention);
 		}
 

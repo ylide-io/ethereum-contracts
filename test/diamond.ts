@@ -421,7 +421,7 @@ describe('Diamond', () => {
 		expect(stakeInfo.registrarCommission).equal(60);
 
 		await expect(
-			stakeFacet.connect(owner)['claim(uint256[],(address,uint256))']([contentId], {
+			stakeFacet.connect(owner).claim([contentId], {
 				interfaceAddress: referrerInterface.address,
 				// 40% interface commission
 				interfaceCommission: 4000,
@@ -429,21 +429,21 @@ describe('Diamond', () => {
 		).to.be.revertedWithCustomError(stakeFacet, 'NoRegistrar');
 
 		await expect(
-			stakeFacet.connect(user2)['claim(uint256[],(address,uint256))']([contentId.add(1)], {
+			stakeFacet.connect(user2).claim([contentId.add(1)], {
 				interfaceAddress: referrerInterface.address,
 				// 40% interface commission
 				interfaceCommission: 4000,
 			}),
 		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
 
-		await stakeFacet.connect(user2)['claim(uint256[],(address,uint256))']([contentId], {
+		await stakeFacet.connect(user2).claim([contentId], {
 			interfaceAddress: referrerInterface.address,
 			// 40% interface commission
 			interfaceCommission: 4000,
 		});
 
 		await expect(
-			stakeFacet.connect(user2)['claim(uint256[],(address,uint256))']([contentId], {
+			stakeFacet.connect(user2).claim([contentId], {
 				interfaceAddress: referrerInterface.address,
 				// 40% interface commission
 				interfaceCommission: 4000,
@@ -456,18 +456,19 @@ describe('Diamond', () => {
 		expect(await configFacet.addressToTokenToAmount(owner.address, erc20.address)).equal(40);
 		expect(await configFacet.addressToTokenToAmount(registrar.address, erc20.address)).equal(60);
 
-		await stakeFacet.connect(referrerInterface)['claim(address)'](erc20.address);
-		await stakeFacet.connect(owner)['claim(address)'](erc20.address);
-		await stakeFacet.connect(registrar)['claim(address)'](erc20.address);
+		await stakeFacet.connect(referrerInterface).withdraw(erc20.address);
+		await stakeFacet.connect(owner).withdraw(erc20.address);
+		await stakeFacet.connect(registrar).withdraw(erc20.address);
 
-		await expect(
-			stakeFacet.connect(referrerInterface)['claim(address)'](erc20.address),
-		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
-		await expect(stakeFacet.connect(owner)['claim(address)'](erc20.address)).to.be.revertedWithCustomError(
+		await expect(stakeFacet.connect(referrerInterface).withdraw(erc20.address)).to.be.revertedWithCustomError(
 			stakeFacet,
 			'NothingToWithdraw',
 		);
-		await expect(stakeFacet.connect(registrar)['claim(address)'](erc20.address)).to.be.revertedWithCustomError(
+		await expect(stakeFacet.connect(owner).withdraw(erc20.address)).to.be.revertedWithCustomError(
+			stakeFacet,
+			'NothingToWithdraw',
+		);
+		await expect(stakeFacet.connect(registrar).withdraw(erc20.address)).to.be.revertedWithCustomError(
 			stakeFacet,
 			'NothingToWithdraw',
 		);
@@ -555,7 +556,7 @@ describe('Diamond', () => {
 		expect(stakeInfo.registrarCommission).equal(0);
 
 		await expect(
-			stakeFacet.connect(user2)['claim(uint256[],(address,uint256))']([contentId], {
+			stakeFacet.connect(user2).claim([contentId], {
 				interfaceAddress: referrerInterface.address,
 				// 40% interface commission
 				interfaceCommission: 4000,
