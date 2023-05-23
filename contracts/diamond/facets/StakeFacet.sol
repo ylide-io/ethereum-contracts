@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {YlideStorage, StakeInfo} from "../YlideStorage.sol";
+import {YlideStorage, StakeInfo, StakeStatus} from "../YlideStorage.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -46,20 +46,33 @@ contract StakeFacet is YlideStorage {
 			StakeInfo storage stakeInfo = s.contentIdToRecipientToStakeInfo[contentIds[i]][
 				uint160(msg.sender)
 			];
-			if (stakeInfo.token == address(0) || stakeInfo.status > 1) {
+			if (stakeInfo.status != StakeStatus.Staked) {
 				revert NothingToWithdraw();
 			}
+
 			uint256 interfaceCommission = (stakeInfo.amount * args.interfaceCommission) / 10000;
 			uint256 recipientShare = stakeInfo.amount - interfaceCommission;
 
-			stakeInfo.status = 3;
-			s.addressToTokenToAmount[args.interfaceAddress][stakeInfo.token] += interfaceCommission;
+			stakeInfo.status = StakeStatus.Claimed;
 
+			s.addressToTokenToAmount[args.interfaceAddress][stakeInfo.token] += interfaceCommission;
 			s.addressToTokenToAmount[s.ylideBeneficiary][stakeInfo.token] += stakeInfo
 				.ylideCommission;
 			s.addressToTokenToAmount[registrar][stakeInfo.token] += stakeInfo.registrarCommission;
 
 			IERC20(stakeInfo.token).safeTransfer(msg.sender, recipientShare);
+			emit StakeClaimed(
+				contentIds[i],
+				stakeInfo.token,
+				uint160(msg.sender),
+				recipientShare,
+				args.interfaceAddress,
+				interfaceCommission,
+				s.ylideBeneficiary,
+				stakeInfo.ylideCommission,
+				registrar,
+				stakeInfo.registrarCommission
+			);
 			unchecked {
 				i++;
 			}
@@ -74,6 +87,7 @@ contract StakeFacet is YlideStorage {
 		}
 		s.addressToTokenToAmount[msg.sender][token] = 0;
 		IERC20(token).safeTransfer(msg.sender, amount);
+		emit Withdrawn(msg.sender, token, amount);
 	}
 
 	// called by sender of message
@@ -82,7 +96,7 @@ contract StakeFacet is YlideStorage {
 			StakeInfo storage stakeInfo = s.contentIdToRecipientToStakeInfo[args[i].contentId][
 				uint160(args[i].recipient)
 			];
-			if (stakeInfo.token == address(0) || stakeInfo.status > 1) {
+			if (stakeInfo.status != StakeStatus.Staked) {
 				revert NothingToWithdraw();
 			}
 			if (stakeInfo.sender != msg.sender) {
@@ -91,11 +105,12 @@ contract StakeFacet is YlideStorage {
 			if (stakeInfo.stakeBlockedUntil >= block.timestamp) {
 				revert StakeLockUp();
 			}
-			stakeInfo.status = 2;
-			IERC20(stakeInfo.token).safeTransfer(
-				stakeInfo.sender,
-				stakeInfo.amount + stakeInfo.ylideCommission + stakeInfo.registrarCommission
-			);
+			stakeInfo.status = StakeStatus.Canceled;
+			uint256 wholeAmount = stakeInfo.amount +
+				stakeInfo.ylideCommission +
+				stakeInfo.registrarCommission;
+			IERC20(stakeInfo.token).safeTransfer(stakeInfo.sender, wholeAmount);
+			emit Cancelled(args[i].contentId, msg.sender, stakeInfo.token, wholeAmount);
 			unchecked {
 				i++;
 			}

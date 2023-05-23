@@ -29,14 +29,18 @@ struct MailingFeed {
 	uint256 recipientFee;
 }
 
+enum StakeStatus {
+	NonExistent,
+	Staked,
+	Canceled,
+	Claimed
+}
+
 struct StakeInfo {
 	uint256 amount;
 	address token;
 	address sender;
-	// 1 - staked
-	// 2 - canceled
-	// 3 - claimed
-	uint16 status;
+	StakeStatus status;
 	uint256 stakeBlockedUntil;
 	uint256 ylideCommission;
 	uint256 registrarCommission;
@@ -161,4 +165,30 @@ abstract contract YlideStorage {
 		uint256 indexed newParticipant,
 		uint256 previousFeedJoinEventsIndex
 	);
+
+	event StakeCreated(
+		uint256 indexed contentId,
+		address indexed token,
+		uint256 indexed recipient,
+		uint256 amount,
+		uint256 ylideCommission,
+		uint256 registrarCommission
+	);
+
+	event StakeClaimed(
+		uint256 indexed contentId,
+		address indexed token,
+		uint256 indexed recipient,
+		uint256 recipientShare,
+		address interfaceAddress,
+		uint256 interfaceCommission,
+		address ylideBeneficiary,
+		uint256 ylideCommission,
+		address registrar,
+		uint256 registrarCommission
+	);
+
+	event Withdrawn(address indexed user, address indexed token, uint256 amount);
+
+	event Cancelled(uint256 indexed contentId, address sender, address token, uint256 wholeAmount);
 }

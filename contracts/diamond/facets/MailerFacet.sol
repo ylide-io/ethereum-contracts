@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {YlideStorage, StakeInfo} from "../YlideStorage.sol";
+import {YlideStorage, StakeInfo, StakeStatus} from "../YlideStorage.sol";
 import {RingBufferIndex} from "../libraries/RingBufferIndex.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -192,7 +192,10 @@ contract MailerFacet is YlideStorage {
 		}
 
 		// if user already paid for this content - revert
-		if (s.contentIdToRecipientToStakeInfo[contentId][mailArgs.recipient].token != address(0)) {
+		if (
+			s.contentIdToRecipientToStakeInfo[contentId][mailArgs.recipient].status !=
+			StakeStatus.NonExistent
+		) {
 			revert PayForAttentionFailed();
 		}
 
@@ -215,7 +218,7 @@ contract MailerFacet is YlideStorage {
 			amount: amount,
 			token: mailArgs.token,
 			sender: msg.sender,
-			status: 1,
+			status: StakeStatus.Staked,
 			stakeBlockedUntil: block.timestamp + s.stakeLockUpPeriod,
 			ylideCommission: ylideCommission,
 			registrarCommission: registrarCommission
@@ -224,6 +227,14 @@ contract MailerFacet is YlideStorage {
 			msg.sender,
 			address(this),
 			amount + ylideCommission + registrarCommission
+		);
+		emit StakeCreated(
+			contentId,
+			mailArgs.token,
+			mailArgs.recipient,
+			amount,
+			ylideCommission,
+			registrarCommission
 		);
 		return true;
 	}
