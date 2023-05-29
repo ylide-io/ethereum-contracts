@@ -44,6 +44,27 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		}
 	}
 
+	function _calculatePaywall(
+		uint256 recipient,
+		address sender,
+		address token
+	) internal view returns (uint256 amount) {
+		uint256 userAmount = s.recipientToPaywallTokenToAmount[recipient][token];
+		if (s.recipientToWhitelistedSender[recipient][sender]) {
+			amount = 0;
+		} else if (userAmount == 0) {
+			amount = s.defaultPaywallTokenToAmount[token];
+		} else {
+			amount = userAmount;
+		}
+		uint256 ylideCommission = (s.ylideCommissionPercentage * amount) / 10000;
+		address recipientAddress = address(uint160(recipient));
+		uint256 referrerCommission = (s.registrarToCommissionPercentage[
+			s.addressToPublicKey[recipientAddress].registrar
+		] * amount) / 10000;
+		amount = amount + ylideCommission + referrerCommission;
+	}
+
 	// ================================
 	// ===== External methods =========
 	// ================================
@@ -190,28 +211,28 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		address[] memory _allowedTokens = s.allowedTokens.list;
 		PayWallArgs[] memory payWallOptions = new PayWallArgs[](_allowedTokens.length);
 		for (uint256 i; i < _allowedTokens.length; ) {
-			uint256 amount;
-			uint256 userAmount = s.recipientToPaywallTokenToAmount[recipient][_allowedTokens[i]];
-			if (s.recipientToWhitelistedSender[recipient][sender]) {
-				amount = 0;
-			} else if (userAmount == 0) {
-				amount = s.defaultPaywallTokenToAmount[_allowedTokens[i]];
-			} else {
-				amount = userAmount;
-			}
-			uint256 ylideCommission = (s.ylideCommissionPercentage * amount) / 10000;
-			uint256 referrerCommission = (s.registrarToCommissionPercentage[
-				s.addressToPublicKey[address(uint160(recipient))].registrar
-			] * amount) / 10000;
-			payWallOptions[i] = PayWallArgs(
-				_allowedTokens[i],
-				amount + ylideCommission + referrerCommission
-			);
+			uint256 amount = _calculatePaywall(recipient, sender, _allowedTokens[i]);
+			payWallOptions[i] = PayWallArgs(_allowedTokens[i], amount);
 			unchecked {
 				i++;
 			}
 		}
 		return payWallOptions;
+	}
+
+	function getRecipientsPaywallByToken(
+		uint256[] calldata recipients,
+		address sender,
+		address token
+	) external view returns (uint256[] memory) {
+		uint256[] memory result = new uint256[](recipients.length);
+		for (uint256 i; i < recipients.length; ) {
+			result[i] = _calculatePaywall(recipients[i], sender, token);
+			unchecked {
+				i++;
+			}
+		}
+		return result;
 	}
 
 	// ================================

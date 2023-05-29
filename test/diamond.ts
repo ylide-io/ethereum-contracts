@@ -1,3 +1,4 @@
+import { BroadcastFeedBeneficiaryChangedEventFilter } from './../typechain-types/contracts/diamond/facets/RegistryFacet';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { expect } from 'chai';
 import { BigNumber } from 'ethers';
@@ -688,5 +689,12 @@ describe('Diamond', () => {
 		expect(stakeInfo.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
 		expect(stakeInfo.ylideCommission).equal(8);
 		expect(stakeInfo.registrarCommission).equal(12);
+	});
+
+	it('getRecipientsPaywallByToken', async () => {
+		const configFacet = await ethers.getContractAt('ConfigFacet', diamondAddress);
+		expect(
+			await configFacet.getRecipientsPaywallByToken([user2.address, user1.address], owner.address, erc20.address),
+		).deep.equal([1100, 220]);
 	});
 });
