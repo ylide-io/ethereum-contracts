@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {YlideStorage, StakeInfo, StakeStatus} from "../YlideStorage.sol";
+import {YlideStorage, StakeInfoSender, StakeInfoRecipient} from "../YlideStorage.sol";
 import {RingBufferIndex} from "../libraries/RingBufferIndex.sol";
+import {PayPerDelivery} from "../libraries/PayPerDelivery.sol";
+import {ListMap} from "../libraries/ListMap.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -15,7 +17,6 @@ contract MailerFacet is YlideStorage {
 	// ================================
 	struct MailArgs {
 		uint256 recipient;
-		address token;
 		bytes key;
 		// uint8 type - bytes data
 		// NONE: 0x
@@ -31,7 +32,8 @@ contract MailerFacet is YlideStorage {
 	error NumberMoreThanFirstBlockNumberPlusBlockCountLock();
 	error FeedNotAllowed();
 	error FeedExists();
-	error PayForAttentionFailed();
+	error ContentIdReplay();
+	error NotAllowedToken();
 
 	// ================================
 	// ===== Internal methods =========
@@ -171,72 +173,67 @@ contract MailerFacet is YlideStorage {
 		}
 	}
 
-	function _payForAttention(
+	function _sendMessageAndPayPerDelivery(
+		uint256 feedId,
 		uint256 contentId,
-		MailArgs calldata mailArgs
-	) internal returns (bool paidForAttention) {
+		address token,
+		MailArgs[] calldata args
+	) internal returns (uint256 sum) {
 		// TODO: we should ensure that sending message to yourself is always free
 		// white list oneself while setting up the paywall?
 
-		// if protocol has no pay wall tokens - allow sending for free
-		if (s.allowedTokens.list.length == 0) {
-			return false;
-		}
-		// if sender is whitelisted - allow sending for free
-		if (s.recipientToWhitelistedSender[mailArgs.recipient][msg.sender]) {
-			return false;
-		}
-		// user tries to trick us with wrong token - revert
-		if (!s.allowedTokens.includes[mailArgs.token]) {
-			revert PayForAttentionFailed();
+		// contentId replay should not happen - revert
+		if (s.contentIdToStakeInfoSender[contentId].sender != address(0)) {
+			revert ContentIdReplay();
 		}
 
-		// if user already paid for this content - revert
-		if (
-			s.contentIdToRecipientToStakeInfo[contentId][mailArgs.recipient].status !=
-			StakeStatus.NonExistent
-		) {
-			revert PayForAttentionFailed();
-		}
-
-		uint256 amount = s.recipientToPaywallTokenToAmount[mailArgs.recipient][mailArgs.token];
-		// if user has no custom paywall
-		if (amount == 0) {
-			// protocol has default paywall - use it
-			amount = s.defaultPaywallTokenToAmount[mailArgs.token];
-			// if protocol has no default paywall - allow sending for free
-			if (amount == 0) {
-				return false;
+		if (s.allowedTokens.list.length > 0) {
+			// user tries to trick us with wrong token - revert
+			if (!s.allowedTokens.includes[token]) {
+				revert NotAllowedToken();
+			}
+			uint16 ylideCommissionPercentage = s.ylideCommissionPercentage;
+			s.contentIdToStakeInfoSender[contentId] = StakeInfoSender({
+				token: token,
+				sender: msg.sender,
+				stakeBlockedUntil: block.timestamp + s.stakeLockUpPeriod,
+				canceled: false,
+				ylideCommissionPercentage: ylideCommissionPercentage
+			});
+			for (uint i = 0; i < args.length; i++) {
+				uint256 amount = PayPerDelivery.calculatePureUserPaywall(
+					s,
+					args[i].recipient,
+					msg.sender,
+					token
+				);
+				if (amount > 0) {
+					uint16 registrarCommissionPercentage = s.registrarToCommissionPercentage[
+						s.addressToPublicKey[address(uint160(args[i].recipient))].registrar
+					];
+					s.contentIdToStakeInfoRecipients[contentId].push(
+						StakeInfoRecipient({
+							amount: amount,
+							registrarCommissionPercentage: registrarCommissionPercentage,
+							claimed: false,
+							recipient: uint160(args[i].recipient)
+						})
+					);
+					uint256 ylideCommission = (ylideCommissionPercentage * amount) / 10000;
+					uint256 registrarCommission = (registrarCommissionPercentage * amount) / 10000;
+					sum += (amount + ylideCommission + registrarCommission);
+				}
+				_emitMailPush(feedId, msg.sender, contentId, args[i], amount > 0);
+			}
+		} else {
+			for (uint i = 0; i < args.length; i++) {
+				_emitMailPush(feedId, msg.sender, contentId, args[i], false);
 			}
 		}
-		uint256 ylideCommission = (s.ylideCommissionPercentage * amount) / 10000;
-		uint256 registrarCommission = (s.registrarToCommissionPercentage[
-			s.addressToPublicKey[msg.sender].registrar
-		] * amount) / 10000;
 
-		s.contentIdToRecipientToStakeInfo[contentId][mailArgs.recipient] = StakeInfo({
-			amount: amount,
-			token: mailArgs.token,
-			sender: msg.sender,
-			status: StakeStatus.Staked,
-			stakeBlockedUntil: block.timestamp + s.stakeLockUpPeriod,
-			ylideCommission: ylideCommission,
-			registrarCommission: registrarCommission
-		});
-		IERC20(mailArgs.token).safeTransferFrom(
-			msg.sender,
-			address(this),
-			amount + ylideCommission + registrarCommission
-		);
-		emit StakeCreated(
-			contentId,
-			mailArgs.token,
-			mailArgs.recipient,
-			amount,
-			ylideCommission,
-			registrarCommission
-		);
-		return true;
+		if (sum > 0) {
+			IERC20(token).safeTransferFrom(msg.sender, address(this), sum);
+		}
 	}
 
 	// ================================
@@ -247,20 +244,14 @@ contract MailerFacet is YlideStorage {
 		uint256 feedId,
 		uint256 uniqueId,
 		MailArgs[] calldata args,
+		address token,
 		bytes calldata content
 	) external payable returns (uint256) {
 		uint256 contentId = _buildContentId(msg.sender, uniqueId, block.number, 1, 0);
-
 		emit MessageContent(contentId, msg.sender, 1, 0, content);
-
-		for (uint i = 0; i < args.length; i++) {
-			bool paidForAttention = _payForAttention(contentId, args[i]);
-			_emitMailPush(feedId, msg.sender, contentId, args[i], paidForAttention);
-		}
-
+		_sendMessageAndPayPerDelivery(feedId, contentId, token, args);
 		_payOut(1, args.length, 0);
 		_payOutMailingFeed(feedId, args.length);
-
 		return contentId;
 	}
 
@@ -268,10 +259,12 @@ contract MailerFacet is YlideStorage {
 		uint256 feedId,
 		uint256 uniqueId,
 		MailArgs[] calldata args,
+		address token,
 		uint256 firstBlockNumber,
 		uint16 partsCount,
 		uint16 blockCountLock
 	) external payable returns (uint256) {
+		_validateBlockLock(firstBlockNumber, blockCountLock);
 		uint256 contentId = _buildContentId(
 			msg.sender,
 			uniqueId,
@@ -279,15 +272,9 @@ contract MailerFacet is YlideStorage {
 			partsCount,
 			blockCountLock
 		);
-
-		for (uint i = 0; i < args.length; i++) {
-			bool paidForAttention = _payForAttention(contentId, args[i]);
-			_emitMailPush(feedId, msg.sender, contentId, args[i], paidForAttention);
-		}
-
+		_sendMessageAndPayPerDelivery(feedId, contentId, token, args);
 		_payOut(0, args.length, 0);
 		_payOutMailingFeed(feedId, args.length);
-
 		return contentId;
 	}
 

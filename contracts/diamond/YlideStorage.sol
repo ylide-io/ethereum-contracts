@@ -29,21 +29,19 @@ struct MailingFeed {
 	uint256 recipientFee;
 }
 
-enum StakeStatus {
-	NonExistent,
-	Staked,
-	Canceled,
-	Claimed
-}
-
-struct StakeInfo {
-	uint256 amount;
+struct StakeInfoSender {
+	uint256 stakeBlockedUntil;
 	address token;
 	address sender;
-	StakeStatus status;
-	uint256 stakeBlockedUntil;
-	uint256 ylideCommission;
-	uint256 registrarCommission;
+	uint16 ylideCommissionPercentage;
+	bool canceled;
+}
+
+struct StakeInfoRecipient {
+	uint256 amount;
+	uint160 recipient;
+	uint16 registrarCommissionPercentage;
+	bool claimed;
 }
 
 struct FacetAddressAndPosition {
@@ -106,12 +104,13 @@ struct Storage {
 	mapping(uint256 => mapping(address => uint256)) recipientToPaywallTokenToAmount;
 	mapping(uint256 => mapping(address => bool)) recipientToWhitelistedSender;
 	// info on staked tokens
-	mapping(uint256 => mapping(uint256 => StakeInfo)) contentIdToRecipientToStakeInfo;
+	mapping(uint256 => StakeInfoSender) contentIdToStakeInfoSender;
+	mapping(uint256 => StakeInfoRecipient[]) contentIdToStakeInfoRecipients;
 	// config of staking
 	uint256 stakeLockUpPeriod;
 	// Percentages denominated in 1e2. 100% = 10000 wei || 0.27% = 27 wei
-	uint256 ylideCommissionPercentage;
-	mapping(address => uint256) registrarToCommissionPercentage;
+	uint16 ylideCommissionPercentage;
+	mapping(address => uint16) registrarToCommissionPercentage;
 }
 
 abstract contract YlideStorage {
@@ -164,15 +163,6 @@ abstract contract YlideStorage {
 		uint256 indexed feedId,
 		uint256 indexed newParticipant,
 		uint256 previousFeedJoinEventsIndex
-	);
-
-	event StakeCreated(
-		uint256 indexed contentId,
-		address indexed token,
-		uint256 indexed recipient,
-		uint256 amount,
-		uint256 ylideCommission,
-		uint256 registrarCommission
 	);
 
 	event StakeClaimed(

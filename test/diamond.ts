@@ -11,7 +11,8 @@ describe('Diamond', () => {
 	let owner: SignerWithAddress;
 	let user1: SignerWithAddress;
 	let user2: SignerWithAddress;
-	let registrar: SignerWithAddress;
+	let registrar1: SignerWithAddress;
+	let registrar2: SignerWithAddress;
 	let referrerInterface: SignerWithAddress;
 	let erc20: MockERC20;
 	let erc20_2: MockERC20;
@@ -19,7 +20,7 @@ describe('Diamond', () => {
 	let feedId: string;
 
 	before(async () => {
-		[owner, user1, user2, registrar, referrerInterface] = await ethers.getSigners();
+		[owner, user1, user2, registrar1, registrar2, referrerInterface] = await ethers.getSigners();
 	});
 
 	it('should deploy diamond and facets', async () => {
@@ -93,12 +94,16 @@ describe('Diamond', () => {
 		const registryFacet = await ethers.getContractAt('RegistryFacet', diamondAddress);
 		const publicKey = BigNumber.from(ethers.utils.randomBytes(32));
 		const keyVersion = 1;
-		await registryFacet.connect(user1).attachPublicKey(publicKey, keyVersion, registrar.address);
-		await registryFacet.connect(user2).attachPublicKey(publicKey, keyVersion, registrar.address);
+		await registryFacet.connect(user1).attachPublicKey(publicKey, keyVersion, registrar1.address);
+		await registryFacet.connect(user2).attachPublicKey(publicKey, keyVersion, registrar2.address);
 		const registryInfo = await configFacet.addressToPublicKey(user1.address);
 		expect(registryInfo.publicKey).equal(publicKey);
 		expect(registryInfo.keyVersion).equal(keyVersion);
-		expect(registryInfo.registrar).equal(registrar.address);
+		expect(registryInfo.registrar).equal(registrar1.address);
+		const registryInfo2 = await configFacet.addressToPublicKey(user2.address);
+		expect(registryInfo2.publicKey).equal(publicKey);
+		expect(registryInfo2.keyVersion).equal(keyVersion);
+		expect(registryInfo2.registrar).equal(registrar2.address);
 	});
 
 	it('should create mailing feed', async () => {
@@ -116,21 +121,19 @@ describe('Diamond', () => {
 	it('should send bulk mail', async () => {
 		const recKeySups = [
 			{
-				recipient: BigNumber.from(user2.address),
-				token: ethers.constants.AddressZero,
+				recipient: user2.address,
 				key: '0x0102',
 				supplement: '0x',
 			},
 			{
-				recipient: BigNumber.from(owner.address),
-				token: ethers.constants.AddressZero,
+				recipient: owner.address,
 				key: '0x010203',
 				supplement: '0x',
 			},
 		];
 		const content = new Uint8Array([8, 7, 8, 7, 8, 7]);
 		const mailerFacet = await ethers.getContractAt('MailerFacet', diamondAddress);
-		await mailerFacet.connect(user1).sendBulkMail(feedId, 123, recKeySups, content);
+		await mailerFacet.connect(user1).sendBulkMail(feedId, 123, recKeySups, ethers.constants.AddressZero, content);
 		const mailEvents = await mailerFacet.queryFilter(mailerFacet.filters.MailPush(null, feedId));
 
 		for (let i = 0; i < mailEvents.length; i++) {
@@ -142,17 +145,33 @@ describe('Diamond', () => {
 		}
 	});
 
+	it('should send 100 bulk mail', async () => {
+		const content = new Uint8Array([8, 7, 8, 7, 8, 7]);
+		const mailerFacet = await ethers.getContractAt('MailerFacet', diamondAddress);
+		const tx = await mailerFacet.connect(user1).sendBulkMail(
+			feedId,
+			123,
+			new Array(100).fill({}).map(e => ({
+				recipient: ethers.Wallet.createRandom().address,
+				key: '0x0102',
+				supplement: '0x',
+			})),
+			ethers.constants.AddressZero,
+			content,
+		);
+		const receipt = await tx.wait();
+		console.log(receipt.gasUsed);
+	});
+
 	it('should add mail recipients', async () => {
 		const recKeySups = [
 			{
 				recipient: BigNumber.from(user2.address),
-				token: ethers.constants.AddressZero,
 				key: '0x0102',
 				supplement: '0x',
 			},
 			{
 				recipient: BigNumber.from(owner.address),
-				token: ethers.constants.AddressZero,
 				key: '0x010203',
 				supplement: '0x',
 			},
@@ -160,7 +179,9 @@ describe('Diamond', () => {
 		const mailerFacet = await ethers.getContractAt('MailerFacet', diamondAddress);
 
 		const currentBlock = await ethers.provider.getBlockNumber();
-		await mailerFacet.connect(user1).addMailRecipients(feedId, 123, recKeySups, currentBlock, 20, 200);
+		await mailerFacet
+			.connect(user1)
+			.addMailRecipients(feedId, 123, recKeySups, ethers.constants.AddressZero, currentBlock, 20, 200);
 		const mailEvents = await mailerFacet.queryFilter(mailerFacet.filters.MailPush(null, feedId), currentBlock + 1);
 		for (let i = 0; i < mailEvents.length; i++) {
 			expect(mailEvents[i].args.feedId).equal(feedId);
@@ -244,11 +265,13 @@ describe('Diamond', () => {
 		// 4% ylide commission
 		await configFacet.connect(owner).setYlideCommissionPercentage(400);
 		// 6% registrar commission
-		await configFacet.connect(registrar).setRegistrarToCommissionPercentage(600);
+		await configFacet.connect(registrar1).setRegistrarToCommissionPercentage(600);
+		await configFacet.connect(registrar2).setRegistrarToCommissionPercentage(600);
 
 		expect(await configFacet.stakeLockUpPeriod()).equal(100);
 		expect(await configFacet.ylideCommissionPercentage()).equal(400);
-		expect(await configFacet.registrarToCommissionPercentage(registrar.address)).equal(600);
+		expect(await configFacet.registrarToCommissionPercentage(registrar1.address)).equal(600);
+		expect(await configFacet.registrarToCommissionPercentage(registrar2.address)).equal(600);
 	});
 
 	it('should send bulk mail with pay for attention (default = 0) + cancel by sender', async () => {
@@ -278,20 +301,18 @@ describe('Diamond', () => {
 		expect(await erc20.balanceOf(user1.address)).equal(1100);
 		const recKeySups = [
 			{
-				recipient: BigNumber.from(user2.address),
-				token: erc20.address,
+				recipient: user2.address,
 				key: '0x0102',
 				supplement: '0x',
 			},
 			{
-				recipient: BigNumber.from(owner.address),
-				token: erc20.address,
+				recipient: owner.address,
 				key: '0x010203',
 				supplement: '0x',
 			},
 		];
 		const content = new Uint8Array([8, 7, 8, 7, 8, 7]);
-		await mailerFacet.connect(user1).sendBulkMail(feedId, 123, recKeySups, content);
+		await mailerFacet.connect(user1).sendBulkMail(feedId, 123, recKeySups, erc20.address, content);
 		expect(await erc20.balanceOf(user2.address)).equal(0);
 		expect(await erc20.balanceOf(user1.address)).equal(0);
 		expect(await erc20.balanceOf(diamondAddress)).equal(1100);
@@ -314,41 +335,35 @@ describe('Diamond', () => {
 
 		const lockupPeriod = await configFacet.stakeLockUpPeriod();
 
-		const stakeInfo = await configFacet.contentIdToRecipientToStakeInfo(contentId, user2.address);
-		expect(stakeInfo.amount).equal(1000);
-		expect(stakeInfo.token).equal(erc20.address);
-		expect(stakeInfo.status).equal(1);
-		expect(stakeInfo.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
-		expect(stakeInfo.ylideCommission).equal(40);
-		expect(stakeInfo.registrarCommission).equal(60);
+		const stakeInfoSender = await configFacet.contentIdToStakeInfoSender(contentId);
+		expect(stakeInfoSender.token).equal(erc20.address);
+		expect(stakeInfoSender.sender).equal(user1.address);
+		expect(stakeInfoSender.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
+		expect(stakeInfoSender.canceled).to.be.false;
+
+		const [stakeInfoRecipient] = await configFacet.contentIdToStakeInfoRecipients(contentId);
+		expect(stakeInfoRecipient.amount).equal(1000);
+		expect(stakeInfoSender.canceled).to.be.false;
 
 		await expect(
-			stakeFacet.connect(user1).cancel([{ contentId: contentId, recipient: owner.address }]),
-		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
-		await expect(
-			stakeFacet.connect(owner).cancel([{ contentId: contentId, recipient: user2.address }]),
+			stakeFacet.connect(owner).cancel([{ contentId: contentId, index: 0 }]),
 		).to.be.revertedWithCustomError(stakeFacet, 'NotSender');
 		await expect(
-			stakeFacet.connect(user1).cancel([{ contentId: contentId, recipient: user2.address }]),
+			stakeFacet.connect(user1).cancel([{ contentId: contentId, index: 0 }]),
 		).to.be.revertedWithCustomError(stakeFacet, 'StakeLockUp');
 
 		await mine(lockupPeriod.add(1).toNumber());
 
-		await stakeFacet.connect(user1).cancel([{ contentId: contentId, recipient: user2.address }]);
+		await stakeFacet.connect(user1).cancel([{ contentId: contentId, index: 0 }]);
 		await expect(
-			stakeFacet.connect(user1).cancel([{ contentId: contentId, recipient: user2.address }]),
+			stakeFacet.connect(user1).cancel([{ contentId: contentId, index: 0 }]),
 		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
 		expect(await erc20.balanceOf(user1.address)).equal(1100);
 		expect(await erc20.balanceOf(user2.address)).equal(0);
 		expect(await erc20.balanceOf(diamondAddress)).equal(0);
 
-		const stakeInfoAfter = await configFacet.contentIdToRecipientToStakeInfo(contentId, user2.address);
-		expect(stakeInfoAfter.amount).equal(1000);
-		expect(stakeInfoAfter.token).equal(erc20.address);
-		expect(stakeInfoAfter.status).equal(2);
-		expect(stakeInfoAfter.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
-		expect(stakeInfoAfter.ylideCommission).equal(40);
-		expect(stakeInfoAfter.registrarCommission).equal(60);
+		const stakeInfoSenderAfter = await configFacet.contentIdToStakeInfoSender(contentId);
+		expect(stakeInfoSenderAfter.canceled).to.be.true;
 	});
 
 	it('should send bulk mail with pay for attention (default = 0) + claim', async () => {
@@ -378,20 +393,18 @@ describe('Diamond', () => {
 		expect(await erc20.balanceOf(diamondAddress)).equal(0);
 		const recKeySups = [
 			{
-				recipient: BigNumber.from(user2.address),
-				token: erc20.address,
+				recipient: user2.address,
 				key: '0x0102',
 				supplement: '0x',
 			},
 			{
-				recipient: BigNumber.from(owner.address),
-				token: erc20.address,
+				recipient: owner.address,
 				key: '0x010203',
 				supplement: '0x',
 			},
 		];
 		const content = new Uint8Array([8, 7, 8, 7, 8, 7]);
-		await mailerFacet.connect(user1).sendBulkMail(feedId, 123, recKeySups, content);
+		await mailerFacet.connect(user1).sendBulkMail(feedId, 123, recKeySups, erc20.address, content);
 		expect(await erc20.balanceOf(user2.address)).equal(0);
 		expect(await erc20.balanceOf(user1.address)).equal(0);
 
@@ -410,19 +423,20 @@ describe('Diamond', () => {
 		}
 
 		const timestamp = await ethers.provider.getBlock(currentBlock).then(block => block.timestamp);
-
 		const lockupPeriod = await configFacet.stakeLockUpPeriod();
 
-		const stakeInfo = await configFacet.contentIdToRecipientToStakeInfo(contentId, user2.address);
-		expect(stakeInfo.amount).equal(1000);
-		expect(stakeInfo.token).equal(erc20.address);
-		expect(stakeInfo.status).equal(1);
-		expect(stakeInfo.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
-		expect(stakeInfo.ylideCommission).equal(40);
-		expect(stakeInfo.registrarCommission).equal(60);
+		const stakeInfoSender = await configFacet.contentIdToStakeInfoSender(contentId);
+		expect(stakeInfoSender.token).equal(erc20.address);
+		expect(stakeInfoSender.sender).equal(user1.address);
+		expect(stakeInfoSender.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
+		expect(stakeInfoSender.canceled).to.be.false;
+
+		const [stakeInfoRecipient] = await configFacet.contentIdToStakeInfoRecipients(contentId);
+		expect(stakeInfoRecipient.amount).equal(1000);
+		expect(stakeInfoRecipient.claimed).to.be.false;
 
 		await expect(
-			stakeFacet.connect(owner).claim([contentId], {
+			stakeFacet.connect(owner).claim([{ contentId, index: 0 }], {
 				interfaceAddress: referrerInterface.address,
 				// 40% interface commission
 				interfaceCommission: 4000,
@@ -430,21 +444,21 @@ describe('Diamond', () => {
 		).to.be.revertedWithCustomError(stakeFacet, 'NoRegistrar');
 
 		await expect(
-			stakeFacet.connect(user2).claim([contentId.add(1)], {
+			stakeFacet.connect(user2).claim([{ contentId: contentId.add(1), index: 0 }], {
 				interfaceAddress: referrerInterface.address,
 				// 40% interface commission
 				interfaceCommission: 4000,
 			}),
-		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
+		).to.be.revertedWithCustomError(stakeFacet, 'NoContentId');
 
-		await stakeFacet.connect(user2).claim([contentId], {
+		await stakeFacet.connect(user2).claim([{ contentId, index: 0 }], {
 			interfaceAddress: referrerInterface.address,
 			// 40% interface commission
 			interfaceCommission: 4000,
 		});
 
 		await expect(
-			stakeFacet.connect(user2).claim([contentId], {
+			stakeFacet.connect(user2).claim([{ contentId, index: 0 }], {
 				interfaceAddress: referrerInterface.address,
 				// 40% interface commission
 				interfaceCommission: 4000,
@@ -455,11 +469,11 @@ describe('Diamond', () => {
 		expect(await erc20.balanceOf(diamondAddress)).equal(500);
 		expect(await configFacet.addressToTokenToAmount(referrerInterface.address, erc20.address)).equal(400);
 		expect(await configFacet.addressToTokenToAmount(owner.address, erc20.address)).equal(40);
-		expect(await configFacet.addressToTokenToAmount(registrar.address, erc20.address)).equal(60);
+		expect(await configFacet.addressToTokenToAmount(registrar2.address, erc20.address)).equal(60);
 
 		await stakeFacet.connect(referrerInterface).withdraw(erc20.address);
 		await stakeFacet.connect(owner).withdraw(erc20.address);
-		await stakeFacet.connect(registrar).withdraw(erc20.address);
+		await stakeFacet.connect(registrar2).withdraw(erc20.address);
 
 		await expect(stakeFacet.connect(referrerInterface).withdraw(erc20.address)).to.be.revertedWithCustomError(
 			stakeFacet,
@@ -469,19 +483,23 @@ describe('Diamond', () => {
 			stakeFacet,
 			'NothingToWithdraw',
 		);
-		await expect(stakeFacet.connect(registrar).withdraw(erc20.address)).to.be.revertedWithCustomError(
+		await expect(stakeFacet.connect(registrar2).withdraw(erc20.address)).to.be.revertedWithCustomError(
+			stakeFacet,
+			'NothingToWithdraw',
+		);
+		await expect(stakeFacet.connect(registrar1).withdraw(erc20.address)).to.be.revertedWithCustomError(
 			stakeFacet,
 			'NothingToWithdraw',
 		);
 
 		expect(await configFacet.addressToTokenToAmount(referrerInterface.address, erc20.address)).equal(0);
 		expect(await configFacet.addressToTokenToAmount(owner.address, erc20.address)).equal(0);
-		expect(await configFacet.addressToTokenToAmount(registrar.address, erc20.address)).equal(0);
+		expect(await configFacet.addressToTokenToAmount(registrar2.address, erc20.address)).equal(0);
 
 		expect(await erc20.balanceOf(diamondAddress)).equal(0);
 		expect(await erc20.balanceOf(referrerInterface.address)).equal(400);
 		expect(await erc20.balanceOf(owner.address)).equal(40);
-		expect(await erc20.balanceOf(registrar.address)).equal(60);
+		expect(await erc20.balanceOf(registrar2.address)).equal(60);
 	});
 
 	it('should whitelist sender and send bulk mail without pay for attention (default = 0)', async () => {
@@ -516,20 +534,18 @@ describe('Diamond', () => {
 		expect(await erc20.balanceOf(user1.address)).equal(1100);
 		const recKeySups = [
 			{
-				recipient: BigNumber.from(user2.address),
-				token: erc20.address,
+				recipient: user2.address,
 				key: '0x0102',
 				supplement: '0x',
 			},
 			{
-				recipient: BigNumber.from(owner.address),
-				token: erc20.address,
+				recipient: owner.address,
 				key: '0x010203',
 				supplement: '0x',
 			},
 		];
 		const content = new Uint8Array([8, 7, 8, 7, 8, 7]);
-		await mailerFacet.connect(user1).sendBulkMail(feedId, 123, recKeySups, content);
+		await mailerFacet.connect(user1).sendBulkMail(feedId, 123, recKeySups, erc20.address, content);
 		expect(await erc20.balanceOf(diamondAddress)).equal(0);
 		expect(await erc20.balanceOf(user2.address)).equal(600);
 		expect(await erc20.balanceOf(user1.address)).equal(1100);
@@ -548,21 +564,25 @@ describe('Diamond', () => {
 			}
 		}
 
-		const stakeInfo = await configFacet.contentIdToRecipientToStakeInfo(contentId, user2.address);
-		expect(stakeInfo.amount).equal(0);
-		expect(stakeInfo.token).equal(ethers.constants.AddressZero);
-		expect(stakeInfo.status).equal(0);
-		expect(stakeInfo.stakeBlockedUntil).equal(0);
-		expect(stakeInfo.ylideCommission).equal(0);
-		expect(stakeInfo.registrarCommission).equal(0);
+		const timestamp = await ethers.provider.getBlock(currentBlock).then(block => block.timestamp);
+		const lockupPeriod = await configFacet.stakeLockUpPeriod();
+
+		const stakeInfoSender = await configFacet.contentIdToStakeInfoSender(contentId);
+		expect(stakeInfoSender.token).equal(erc20.address);
+		expect(stakeInfoSender.sender).equal(user1.address);
+		expect(stakeInfoSender.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
+		expect(stakeInfoSender.canceled).to.be.false;
+
+		const result = await configFacet.contentIdToStakeInfoRecipients(contentId);
+		expect(result.length).equal(0);
 
 		await expect(
-			stakeFacet.connect(user2).claim([contentId], {
+			stakeFacet.connect(user2).claim([{ contentId, index: 0 }], {
 				interfaceAddress: referrerInterface.address,
 				// 40% interface commission
 				interfaceCommission: 4000,
 			}),
-		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
+		).to.be.revertedWithCustomError(stakeFacet, 'NoContentId');
 	});
 
 	it('should send bulk mail with default pay for attention (custom is disabled)', async () => {
@@ -591,13 +611,12 @@ describe('Diamond', () => {
 		const content = new Uint8Array([8, 7, 8, 7, 8, 7]);
 		const recKeySups = [
 			{
-				recipient: BigNumber.from(user1.address),
-				token: erc20.address,
+				recipient: user1.address,
 				key: '0x0102',
 				supplement: '0x',
 			},
 		];
-		await mailerFacet.connect(user2).sendBulkMail(feedId, 123, recKeySups, content);
+		await mailerFacet.connect(user2).sendBulkMail(feedId, 123, recKeySups, erc20.address, content);
 		expect(await erc20.balanceOf(user2.address)).equal(user2Balance.sub(110));
 		expect(await erc20.balanceOf(user1.address)).equal(1100);
 
@@ -619,13 +638,15 @@ describe('Diamond', () => {
 
 		const lockupPeriod = await configFacet.stakeLockUpPeriod();
 
-		const stakeInfo = await configFacet.contentIdToRecipientToStakeInfo(contentId, user1.address);
-		expect(stakeInfo.amount).equal(100);
-		expect(stakeInfo.token).equal(erc20.address);
-		expect(stakeInfo.status).equal(1);
-		expect(stakeInfo.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
-		expect(stakeInfo.ylideCommission).equal(4);
-		expect(stakeInfo.registrarCommission).equal(6);
+		const stakeInfoSender = await configFacet.contentIdToStakeInfoSender(contentId);
+		expect(stakeInfoSender.token).equal(erc20.address);
+		expect(stakeInfoSender.sender).equal(user2.address);
+		expect(stakeInfoSender.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
+		expect(stakeInfoSender.canceled).to.be.false;
+
+		const [stakeInfoRecipient] = await configFacet.contentIdToStakeInfoRecipients(contentId);
+		expect(stakeInfoRecipient.amount).equal(100);
+		expect(stakeInfoRecipient.claimed).to.be.false;
 	});
 
 	it('should send bulk mail overriding default pay for attention with custom', async () => {
@@ -653,14 +674,13 @@ describe('Diamond', () => {
 		expect(await erc20.balanceOf(user1.address)).equal(1100);
 		const recKeySups = [
 			{
-				recipient: BigNumber.from(user1.address),
-				token: erc20.address,
+				recipient: user1.address,
 				key: '0x0102',
 				supplement: '0x',
 			},
 		];
 		const content = new Uint8Array([8, 7, 8, 7, 8, 7]);
-		await mailerFacet.connect(user2).sendBulkMail(feedId, 123, recKeySups, content);
+		await mailerFacet.connect(user2).sendBulkMail(feedId, 123, recKeySups, erc20.address, content);
 		expect(await erc20.balanceOf(user2.address)).equal(user2Balance.sub(220));
 		expect(await erc20.balanceOf(user1.address)).equal(1100);
 
@@ -682,13 +702,15 @@ describe('Diamond', () => {
 
 		const lockupPeriod = await configFacet.stakeLockUpPeriod();
 
-		const stakeInfo = await configFacet.contentIdToRecipientToStakeInfo(contentId, user1.address);
-		expect(stakeInfo.amount).equal(200);
-		expect(stakeInfo.token).equal(erc20.address);
-		expect(stakeInfo.status).equal(1);
-		expect(stakeInfo.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
-		expect(stakeInfo.ylideCommission).equal(8);
-		expect(stakeInfo.registrarCommission).equal(12);
+		const stakeInfoSender = await configFacet.contentIdToStakeInfoSender(contentId);
+		expect(stakeInfoSender.token).equal(erc20.address);
+		expect(stakeInfoSender.sender).equal(user2.address);
+		expect(stakeInfoSender.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
+		expect(stakeInfoSender.canceled).to.be.false;
+
+		const [stakeInfoRecipient] = await configFacet.contentIdToStakeInfoRecipients(contentId);
+		expect(stakeInfoRecipient.amount).equal(200);
+		expect(stakeInfoRecipient.claimed).to.be.false;
 	});
 
 	it('getRecipientsPaywallByToken', async () => {
@@ -696,5 +718,25 @@ describe('Diamond', () => {
 		expect(
 			await configFacet.getRecipientsPaywallByToken([user2.address, user1.address], owner.address, erc20.address),
 		).deep.equal([1100, 220]);
+	});
+
+	it('should send bulk mail overriding default pay for attention with custom', async () => {
+		const mailerFacet = await ethers.getContractAt('MailerFacet', diamondAddress);
+		await erc20.connect(user2).mint('1000000000000000000000000');
+		await erc20.connect(user2).approve(diamondAddress, '100000000000000000000000000');
+		const content = new Uint8Array([8, 7, 8, 7, 8, 7]);
+		const tx = await mailerFacet.connect(user2).sendBulkMail(
+			feedId,
+			123,
+			new Array(100).fill({}).map(_ => ({
+				recipient: ethers.Wallet.createRandom().address,
+				key: '0x0102',
+				supplement: '0x',
+			})),
+			erc20.address,
+			content,
+		);
+		const receipt = await tx.wait();
+		console.log(receipt.gasUsed);
 	});
 });

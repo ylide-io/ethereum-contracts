@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {YlideStorage, MailingFeed, BroadcastFeed, RegistryEntry, StakeInfo} from "../YlideStorage.sol";
+import {YlideStorage, MailingFeed, BroadcastFeed, RegistryEntry, StakeInfoSender, StakeInfoRecipient} from "../YlideStorage.sol";
 import {Owner} from "../libraries/Owner.sol";
+import {PayPerDelivery} from "../libraries/PayPerDelivery.sol";
 import {ListMap} from "../libraries/ListMap.sol";
 import {IERC173} from "../interfaces/IERC173.sol";
 
@@ -42,27 +43,6 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		if (msg.sender != s.broadcastFeeds[feedId].owner) {
 			revert NotFeedOwner();
 		}
-	}
-
-	function _calculatePaywall(
-		uint256 recipient,
-		address sender,
-		address token
-	) internal view returns (uint256 amount) {
-		uint256 userAmount = s.recipientToPaywallTokenToAmount[recipient][token];
-		if (s.recipientToWhitelistedSender[recipient][sender]) {
-			amount = 0;
-		} else if (userAmount == 0) {
-			amount = s.defaultPaywallTokenToAmount[token];
-		} else {
-			amount = userAmount;
-		}
-		uint256 ylideCommission = (s.ylideCommissionPercentage * amount) / 10000;
-		address recipientAddress = address(uint160(recipient));
-		uint256 referrerCommission = (s.registrarToCommissionPercentage[
-			s.addressToPublicKey[recipientAddress].registrar
-		] * amount) / 10000;
-		amount = amount + ylideCommission + referrerCommission;
 	}
 
 	// ================================
@@ -185,11 +165,16 @@ contract ConfigFacet is YlideStorage, IERC173 {
 			s.recipientToWhitelistedSender[uint256(sha256(abi.encode(user)))][user];
 	}
 
-	function contentIdToRecipientToStakeInfo(
-		uint256 contentId,
-		uint256 recipient
-	) external view returns (StakeInfo memory) {
-		return s.contentIdToRecipientToStakeInfo[contentId][recipient];
+	function contentIdToStakeInfoSender(
+		uint256 contentId
+	) external view returns (StakeInfoSender memory) {
+		return s.contentIdToStakeInfoSender[contentId];
+	}
+
+	function contentIdToStakeInfoRecipients(
+		uint256 contentId
+	) external view returns (StakeInfoRecipient[] memory) {
+		return s.contentIdToStakeInfoRecipients[contentId];
 	}
 
 	function stakeLockUpPeriod() external view returns (uint256) {
@@ -211,8 +196,12 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		address[] memory _allowedTokens = s.allowedTokens.list;
 		PayWallArgs[] memory payWallOptions = new PayWallArgs[](_allowedTokens.length);
 		for (uint256 i; i < _allowedTokens.length; ) {
-			uint256 amount = _calculatePaywall(recipient, sender, _allowedTokens[i]);
-			payWallOptions[i] = PayWallArgs(_allowedTokens[i], amount);
+			(uint256 amount, uint256 ylideCommission, uint256 registrarCommission) = PayPerDelivery
+				.calculatePaywall(s, recipient, sender, _allowedTokens[i]);
+			payWallOptions[i] = PayWallArgs(
+				_allowedTokens[i],
+				amount + ylideCommission + registrarCommission
+			);
 			unchecked {
 				i++;
 			}
@@ -227,7 +216,9 @@ contract ConfigFacet is YlideStorage, IERC173 {
 	) external view returns (uint256[] memory) {
 		uint256[] memory result = new uint256[](recipients.length);
 		for (uint256 i; i < recipients.length; ) {
-			result[i] = _calculatePaywall(recipients[i], sender, token);
+			(uint256 amount, uint256 ylideCommission, uint256 registrarCommission) = PayPerDelivery
+				.calculatePaywall(s, recipients[i], sender, token);
+			result[i] = amount + ylideCommission + registrarCommission;
 			unchecked {
 				i++;
 			}
@@ -341,12 +332,12 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		s.stakeLockUpPeriod = _stakeLockUpPeriod;
 	}
 
-	function setYlideCommissionPercentage(uint256 _ylideCommissionPercentage) external {
+	function setYlideCommissionPercentage(uint16 _ylideCommissionPercentage) external {
 		Owner.enforceIsContractOwner(s);
 		s.ylideCommissionPercentage = _ylideCommissionPercentage;
 	}
 
-	function setRegistrarToCommissionPercentage(uint256 commissionPercentage) external {
+	function setRegistrarToCommissionPercentage(uint16 commissionPercentage) external {
 		s.registrarToCommissionPercentage[msg.sender] = commissionPercentage;
 	}
 
