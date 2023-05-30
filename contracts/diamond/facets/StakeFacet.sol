@@ -18,7 +18,7 @@ contract StakeFacet is YlideStorage {
 		uint256 interfaceCommission;
 	}
 
-	struct ClaimCancelArgs {
+	struct CancelArgs {
 		uint256 contentId;
 		uint160 recipient;
 	}
@@ -44,21 +44,16 @@ contract StakeFacet is YlideStorage {
 	// ================================
 
 	// Called by recipient of message
-	function claim(
-		ClaimCancelArgs[] calldata claimArgs,
-		RecipientInterfaceArgs calldata args
-	) external {
+	function claim(uint256[] calldata contentIds, RecipientInterfaceArgs calldata args) external {
 		address registrar = s.addressToPublicKey[msg.sender].registrar;
 		if (registrar == address(0)) {
 			revert NoRegistrar();
 		}
-		for (uint256 i; i < claimArgs.length; ) {
-			StakeInfoSender storage stakeInfoSender = s.contentIdToStakeInfoSender[
-				claimArgs[i].contentId
-			];
+		for (uint256 i; i < contentIds.length; ) {
+			StakeInfoSender storage stakeInfoSender = s.contentIdToStakeInfoSender[contentIds[i]];
 			StakeInfoRecipient storage stakeInfoRecipient = s.contentIdToRecipientToStakeInfo[
-				claimArgs[i].contentId
-			][claimArgs[i].recipient];
+				contentIds[i]
+			][uint160(msg.sender)];
 			if (
 				stakeInfoSender.canceled ||
 				stakeInfoRecipient.claimed ||
@@ -91,7 +86,7 @@ contract StakeFacet is YlideStorage {
 
 			IERC20(stakeInfoSender.token).safeTransfer(msg.sender, vars.recipientShare);
 			emit StakeClaimed(
-				claimArgs[i].contentId,
+				contentIds[i],
 				stakeInfoSender.token,
 				uint160(msg.sender),
 				vars.recipientShare,
@@ -109,7 +104,7 @@ contract StakeFacet is YlideStorage {
 	}
 
 	// called by sender of message
-	function cancel(ClaimCancelArgs[] calldata cancelArgs) external {
+	function cancel(CancelArgs[] calldata cancelArgs) external {
 		for (uint256 i; i < cancelArgs.length; ) {
 			StakeInfoSender storage stakeInfoSender = s.contentIdToStakeInfoSender[
 				cancelArgs[i].contentId
