@@ -26,17 +26,12 @@ describe('MailerV8', () => {
 	});
 
 	it('sendBulkMail with signature', async () => {
-		const tx = await ylideMailer.connect(owner).sendBulkMail(
+		await ylideMailer.connect(owner).sendBulkMail(
 			feedId,
 			uniqueId,
 			new Array(100).fill({}).map(_ => ethers.Wallet.createRandom().address),
 			new Array(100).fill(new Uint8Array([1, 2, 3, 4, 5, 6])),
 			content,
 		);
-
-		await tx
-			.wait()
-			.then(r => r.gasUsed)
-			.then(console.log);
 	});
 });

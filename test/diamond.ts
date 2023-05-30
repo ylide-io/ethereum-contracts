@@ -1,4 +1,3 @@
-import { BroadcastFeedBeneficiaryChangedEventFilter } from './../typechain-types/contracts/diamond/facets/RegistryFacet';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { expect } from 'chai';
 import { BigNumber } from 'ethers';
@@ -725,7 +724,7 @@ describe('Diamond', () => {
 		await erc20.connect(user2).mint('1000000000000000000000000');
 		await erc20.connect(user2).approve(diamondAddress, '100000000000000000000000000');
 		const content = new Uint8Array([8, 7, 8, 7, 8, 7]);
-		const tx = await mailerFacet.connect(user2).sendBulkMail(
+		await mailerFacet.connect(user2).sendBulkMail(
 			feedId,
 			123,
 			new Array(100).fill({}).map(_ => ({
@@ -736,7 +735,5 @@ describe('Diamond', () => {
 			erc20.address,
 			content,
 		);
-		const receipt = await tx.wait();
-		console.log(receipt.gasUsed);
 	});
 });
