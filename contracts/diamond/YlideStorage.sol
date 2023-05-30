@@ -38,8 +38,7 @@ struct StakeInfoSender {
 }
 
 struct StakeInfoRecipient {
-	uint256 amount;
-	uint160 recipient;
+	uint160 amount;
 	uint16 registrarCommissionPercentage;
 	bool claimed;
 }
@@ -105,7 +104,7 @@ struct Storage {
 	mapping(uint256 => mapping(address => bool)) recipientToWhitelistedSender;
 	// info on staked tokens
 	mapping(uint256 => StakeInfoSender) contentIdToStakeInfoSender;
-	mapping(uint256 => StakeInfoRecipient[]) contentIdToStakeInfoRecipients;
+	mapping(uint256 => mapping(uint160 => StakeInfoRecipient)) contentIdToRecipientToStakeInfo;
 	// config of staking
 	uint256 stakeLockUpPeriod;
 	// Percentages denominated in 1e2. 100% = 10000 wei || 0.27% = 27 wei

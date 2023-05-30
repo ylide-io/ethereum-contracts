@@ -211,14 +211,13 @@ contract MailerFacet is YlideStorage {
 					uint16 registrarCommissionPercentage = s.registrarToCommissionPercentage[
 						s.addressToPublicKey[address(uint160(args[i].recipient))].registrar
 					];
-					s.contentIdToStakeInfoRecipients[contentId].push(
-						StakeInfoRecipient({
-							amount: amount,
-							registrarCommissionPercentage: registrarCommissionPercentage,
-							claimed: false,
-							recipient: uint160(args[i].recipient)
-						})
-					);
+					s.contentIdToRecipientToStakeInfo[contentId][
+						uint160(args[i].recipient)
+					] = StakeInfoRecipient({
+						amount: uint160(amount),
+						registrarCommissionPercentage: registrarCommissionPercentage,
+						claimed: false
+					});
 					uint256 ylideCommission = (ylideCommissionPercentage * amount) / 10000;
 					uint256 registrarCommission = (registrarCommissionPercentage * amount) / 10000;
 					sum += (amount + ylideCommission + registrarCommission);

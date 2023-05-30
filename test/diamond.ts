@@ -341,22 +341,22 @@ describe('Diamond', () => {
 		expect(stakeInfoSender.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
 		expect(stakeInfoSender.canceled).to.be.false;
 
-		const [stakeInfoRecipient] = await configFacet.contentIdToStakeInfoRecipients(contentId);
+		const stakeInfoRecipient = await configFacet.contentIdToRecipientToStakeInfo(contentId, user2.address);
 		expect(stakeInfoRecipient.amount).equal(1000);
 		expect(stakeInfoSender.canceled).to.be.false;
 
 		await expect(
-			stakeFacet.connect(owner).cancel([{ contentId: contentId, index: 0 }]),
+			stakeFacet.connect(owner).cancel([{ contentId: contentId, recipient: user2.address }]),
 		).to.be.revertedWithCustomError(stakeFacet, 'NotSender');
 		await expect(
-			stakeFacet.connect(user1).cancel([{ contentId: contentId, index: 0 }]),
+			stakeFacet.connect(user1).cancel([{ contentId: contentId, recipient: user2.address }]),
 		).to.be.revertedWithCustomError(stakeFacet, 'StakeLockUp');
 
 		await mine(lockupPeriod.add(1).toNumber());
 
-		await stakeFacet.connect(user1).cancel([{ contentId: contentId, index: 0 }]);
+		await stakeFacet.connect(user1).cancel([{ contentId: contentId, recipient: user2.address }]);
 		await expect(
-			stakeFacet.connect(user1).cancel([{ contentId: contentId, index: 0 }]),
+			stakeFacet.connect(user1).cancel([{ contentId: contentId, recipient: user2.address }]),
 		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
 		expect(await erc20.balanceOf(user1.address)).equal(1100);
 		expect(await erc20.balanceOf(user2.address)).equal(0);
@@ -431,12 +431,12 @@ describe('Diamond', () => {
 		expect(stakeInfoSender.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
 		expect(stakeInfoSender.canceled).to.be.false;
 
-		const [stakeInfoRecipient] = await configFacet.contentIdToStakeInfoRecipients(contentId);
+		const stakeInfoRecipient = await configFacet.contentIdToRecipientToStakeInfo(contentId, user2.address);
 		expect(stakeInfoRecipient.amount).equal(1000);
 		expect(stakeInfoRecipient.claimed).to.be.false;
 
 		await expect(
-			stakeFacet.connect(owner).claim([{ contentId, index: 0 }], {
+			stakeFacet.connect(owner).claim([{ contentId, recipient: user2.address }], {
 				interfaceAddress: referrerInterface.address,
 				// 40% interface commission
 				interfaceCommission: 4000,
@@ -444,21 +444,21 @@ describe('Diamond', () => {
 		).to.be.revertedWithCustomError(stakeFacet, 'NoRegistrar');
 
 		await expect(
-			stakeFacet.connect(user2).claim([{ contentId: contentId.add(1), index: 0 }], {
+			stakeFacet.connect(user2).claim([{ contentId: contentId.add(1), recipient: user2.address }], {
 				interfaceAddress: referrerInterface.address,
 				// 40% interface commission
 				interfaceCommission: 4000,
 			}),
-		).to.be.revertedWithCustomError(stakeFacet, 'NoContentId');
+		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
 
-		await stakeFacet.connect(user2).claim([{ contentId, index: 0 }], {
+		await stakeFacet.connect(user2).claim([{ contentId, recipient: user2.address }], {
 			interfaceAddress: referrerInterface.address,
 			// 40% interface commission
 			interfaceCommission: 4000,
 		});
 
 		await expect(
-			stakeFacet.connect(user2).claim([{ contentId, index: 0 }], {
+			stakeFacet.connect(user2).claim([{ contentId, recipient: user2.address }], {
 				interfaceAddress: referrerInterface.address,
 				// 40% interface commission
 				interfaceCommission: 4000,
@@ -573,16 +573,16 @@ describe('Diamond', () => {
 		expect(stakeInfoSender.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
 		expect(stakeInfoSender.canceled).to.be.false;
 
-		const result = await configFacet.contentIdToStakeInfoRecipients(contentId);
-		expect(result.length).equal(0);
+		const result = await configFacet.contentIdToRecipientToStakeInfo(contentId, user2.address);
+		expect(result.amount).equal(0);
 
 		await expect(
-			stakeFacet.connect(user2).claim([{ contentId, index: 0 }], {
+			stakeFacet.connect(user2).claim([{ contentId, recipient: user2.address }], {
 				interfaceAddress: referrerInterface.address,
 				// 40% interface commission
 				interfaceCommission: 4000,
 			}),
-		).to.be.revertedWithCustomError(stakeFacet, 'NoContentId');
+		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
 	});
 
 	it('should send bulk mail with default pay for attention (custom is disabled)', async () => {
@@ -644,7 +644,7 @@ describe('Diamond', () => {
 		expect(stakeInfoSender.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
 		expect(stakeInfoSender.canceled).to.be.false;
 
-		const [stakeInfoRecipient] = await configFacet.contentIdToStakeInfoRecipients(contentId);
+		const stakeInfoRecipient = await configFacet.contentIdToRecipientToStakeInfo(contentId, user1.address);
 		expect(stakeInfoRecipient.amount).equal(100);
 		expect(stakeInfoRecipient.claimed).to.be.false;
 	});
@@ -708,7 +708,7 @@ describe('Diamond', () => {
 		expect(stakeInfoSender.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
 		expect(stakeInfoSender.canceled).to.be.false;
 
-		const [stakeInfoRecipient] = await configFacet.contentIdToStakeInfoRecipients(contentId);
+		const stakeInfoRecipient = await configFacet.contentIdToRecipientToStakeInfo(contentId, user1.address);
 		expect(stakeInfoRecipient.amount).equal(200);
 		expect(stakeInfoRecipient.claimed).to.be.false;
 	});

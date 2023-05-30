@@ -171,10 +171,11 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		return s.contentIdToStakeInfoSender[contentId];
 	}
 
-	function contentIdToStakeInfoRecipients(
-		uint256 contentId
-	) external view returns (StakeInfoRecipient[] memory) {
-		return s.contentIdToStakeInfoRecipients[contentId];
+	function contentIdToRecipientToStakeInfo(
+		uint256 contentId,
+		uint160 recipient
+	) external view returns (StakeInfoRecipient memory) {
+		return s.contentIdToRecipientToStakeInfo[contentId][recipient];
 	}
 
 	function stakeLockUpPeriod() external view returns (uint256) {

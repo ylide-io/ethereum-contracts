@@ -20,7 +20,7 @@ contract StakeFacet is YlideStorage {
 
 	struct ClaimCancelArgs {
 		uint256 contentId;
-		uint256 index;
+		uint160 recipient;
 	}
 
 	struct ClaimVars {
@@ -35,11 +35,9 @@ contract StakeFacet is YlideStorage {
 	// ================================
 
 	error NotSender();
-	error NotRecipient();
 	error StakeLockUp();
 	error NothingToWithdraw();
 	error NoRegistrar();
-	error NoContentId();
 
 	// ================================
 	// ===== External methods =========
@@ -58,16 +56,9 @@ contract StakeFacet is YlideStorage {
 			StakeInfoSender storage stakeInfoSender = s.contentIdToStakeInfoSender[
 				claimArgs[i].contentId
 			];
-			StakeInfoRecipient[] storage stakeInfoRecipients = s.contentIdToStakeInfoRecipients[
+			StakeInfoRecipient storage stakeInfoRecipient = s.contentIdToRecipientToStakeInfo[
 				claimArgs[i].contentId
-			];
-			if (stakeInfoRecipients.length == 0) {
-				revert NoContentId();
-			}
-			StakeInfoRecipient storage stakeInfoRecipient = stakeInfoRecipients[claimArgs[i].index];
-			if (stakeInfoRecipient.recipient != uint160(msg.sender)) {
-				revert NotRecipient();
-			}
+			][claimArgs[i].recipient];
 			if (
 				stakeInfoSender.canceled ||
 				stakeInfoRecipient.claimed ||
@@ -123,9 +114,9 @@ contract StakeFacet is YlideStorage {
 			StakeInfoSender storage stakeInfoSender = s.contentIdToStakeInfoSender[
 				cancelArgs[i].contentId
 			];
-			StakeInfoRecipient storage stakeInfoRecipient = s.contentIdToStakeInfoRecipients[
+			StakeInfoRecipient storage stakeInfoRecipient = s.contentIdToRecipientToStakeInfo[
 				cancelArgs[i].contentId
-			][cancelArgs[i].index];
+			][cancelArgs[i].recipient];
 			if (stakeInfoSender.sender != msg.sender) {
 				revert NotSender();
 			}
@@ -149,7 +140,7 @@ contract StakeFacet is YlideStorage {
 			emit StakeCancelled(
 				cancelArgs[i].contentId,
 				stakeInfoSender.token,
-				stakeInfoRecipient.recipient,
+				cancelArgs[i].recipient,
 				wholeAmount
 			);
 			unchecked {
