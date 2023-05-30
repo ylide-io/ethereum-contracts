@@ -192,14 +192,8 @@ contract MailerFacet is YlideStorage {
 			if (!s.allowedTokens.includes[token]) {
 				revert NotAllowedToken();
 			}
-			uint16 ylideCommissionPercentage = s.ylideCommissionPercentage;
-			s.contentIdToStakeInfoSender[contentId] = StakeInfoSender({
-				token: token,
-				sender: msg.sender,
-				stakeBlockedUntil: block.timestamp + s.stakeLockUpPeriod,
-				canceled: false,
-				ylideCommissionPercentage: ylideCommissionPercentage
-			});
+			uint256 amountSum;
+			uint256 registrarsSum;
 			for (uint i = 0; i < args.length; i++) {
 				uint256 amount = PayPerDelivery.calculatePureUserPaywall(
 					s,
@@ -211,6 +205,7 @@ contract MailerFacet is YlideStorage {
 					uint16 registrarCommissionPercentage = s.registrarToCommissionPercentage[
 						s.addressToPublicKey[address(uint160(args[i].recipient))].registrar
 					];
+					if (uint160(amount) < amount) revert();
 					s.contentIdToRecipientToStakeInfo[contentId][
 						uint160(args[i].recipient)
 					] = StakeInfoRecipient({
@@ -218,12 +213,21 @@ contract MailerFacet is YlideStorage {
 						registrarCommissionPercentage: registrarCommissionPercentage,
 						claimed: false
 					});
-					uint256 ylideCommission = (ylideCommissionPercentage * amount) / 10000;
-					uint256 registrarCommission = (registrarCommissionPercentage * amount) / 10000;
-					sum += (amount + ylideCommission + registrarCommission);
+					amountSum += amount;
+					registrarsSum += ((registrarCommissionPercentage * amount) / 10000);
 				}
 				_emitMailPush(feedId, msg.sender, contentId, args[i], amount > 0);
 			}
+			uint16 ylideCommissionPercentage = s.ylideCommissionPercentage;
+			s.contentIdToStakeInfoSender[contentId] = StakeInfoSender({
+				token: token,
+				sender: msg.sender,
+				stakeBlockedUntil: block.timestamp + s.stakeLockUpPeriod,
+				canceled: false,
+				ylideCommissionPercentage: ylideCommissionPercentage
+			});
+			uint256 ylideCommission = (ylideCommissionPercentage * amountSum) / 10000;
+			sum = amountSum + ylideCommission + registrarsSum;
 		} else {
 			for (uint i = 0; i < args.length; i++) {
 				_emitMailPush(feedId, msg.sender, contentId, args[i], false);
