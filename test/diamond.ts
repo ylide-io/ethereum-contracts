@@ -91,7 +91,7 @@ describe('Diamond', () => {
 	it('should add key to registry', async () => {
 		const configFacet = await ethers.getContractAt('ConfigFacet', diamondAddress);
 		const registryFacet = await ethers.getContractAt('RegistryFacet', diamondAddress);
-		const publicKey = BigNumber.from(ethers.utils.randomBytes(32));
+		const publicKey = 123;
 		const keyVersion = 1;
 		await registryFacet.connect(user1).attachPublicKey(publicKey, keyVersion, registrar1.address);
 		await registryFacet.connect(user2).attachPublicKey(publicKey, keyVersion, registrar2.address);
@@ -147,7 +147,7 @@ describe('Diamond', () => {
 	it('should send 100 bulk mail', async () => {
 		const content = new Uint8Array([8, 7, 8, 7, 8, 7]);
 		const mailerFacet = await ethers.getContractAt('MailerFacet', diamondAddress);
-		const tx = await mailerFacet.connect(user1).sendBulkMail(
+		await mailerFacet.connect(user1).sendBulkMail(
 			feedId,
 			123,
 			new Array(100).fill({}).map(e => ({
@@ -158,19 +158,17 @@ describe('Diamond', () => {
 			ethers.constants.AddressZero,
 			content,
 		);
-		const receipt = await tx.wait();
-		console.log(receipt.gasUsed);
 	});
 
 	it('should add mail recipients', async () => {
 		const recKeySups = [
 			{
-				recipient: BigNumber.from(user2.address),
+				recipient: user2.address,
 				key: '0x0102',
 				supplement: '0x',
 			},
 			{
-				recipient: BigNumber.from(owner.address),
+				recipient: owner.address,
 				key: '0x010203',
 				supplement: '0x',
 			},
@@ -325,7 +323,7 @@ describe('Diamond', () => {
 			expect(mailEvents[i].args.recipient).equal(recKeySups[i].recipient);
 			expect(mailEvents[i].args.key).equal(recKeySups[i].key);
 			expect(mailEvents[i].args.supplement).equal(recKeySups[i].supplement);
-			if (mailEvents[i].args.recipient.eq(BigNumber.from(user2.address))) {
+			if (mailEvents[i].args.recipient.eq(user2.address)) {
 				contentId = mailEvents[i].args.contentId;
 			}
 		}
@@ -416,7 +414,7 @@ describe('Diamond', () => {
 			expect(mailEvents[i].args.recipient).equal(recKeySups[i].recipient);
 			expect(mailEvents[i].args.key).equal(recKeySups[i].key);
 			expect(mailEvents[i].args.supplement).equal(recKeySups[i].supplement);
-			if (mailEvents[i].args.recipient.eq(BigNumber.from(user2.address))) {
+			if (mailEvents[i].args.recipient.eq(user2.address)) {
 				contentId = mailEvents[i].args.contentId;
 			}
 		}
@@ -558,7 +556,7 @@ describe('Diamond', () => {
 			expect(mailEvents[i].args.recipient).equal(recKeySups[i].recipient);
 			expect(mailEvents[i].args.key).equal(recKeySups[i].key);
 			expect(mailEvents[i].args.supplement).equal(recKeySups[i].supplement);
-			if (mailEvents[i].args.recipient.eq(BigNumber.from(user2.address))) {
+			if (mailEvents[i].args.recipient.eq(user2.address)) {
 				contentId = mailEvents[i].args.contentId;
 			}
 		}
@@ -628,7 +626,7 @@ describe('Diamond', () => {
 			expect(mailEvents[i].args.recipient).equal(recKeySups[i].recipient);
 			expect(mailEvents[i].args.key).equal(recKeySups[i].key);
 			expect(mailEvents[i].args.supplement).equal(recKeySups[i].supplement);
-			if (mailEvents[i].args.recipient.eq(BigNumber.from(user1.address))) {
+			if (mailEvents[i].args.recipient.eq(user1.address)) {
 				contentId = mailEvents[i].args.contentId;
 			}
 		}
@@ -692,7 +690,7 @@ describe('Diamond', () => {
 			expect(mailEvents[i].args.recipient).equal(recKeySups[i].recipient);
 			expect(mailEvents[i].args.key).equal(recKeySups[i].key);
 			expect(mailEvents[i].args.supplement).equal(recKeySups[i].supplement);
-			if (mailEvents[i].args.recipient.eq(BigNumber.from(user1.address))) {
+			if (mailEvents[i].args.recipient.eq(user1.address)) {
 				contentId = mailEvents[i].args.contentId;
 			}
 		}
