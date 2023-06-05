@@ -30,7 +30,7 @@ library PayPerDelivery {
 	) internal view returns (uint256 amount) {
 		// if sender is whitelisted - allow sending for free
 		if (s.recipientToWhitelistedSender[recipient][sender]) {
-			return amount;
+			return 0;
 		}
 		uint256 userAmount = s.recipientToPaywallTokenToAmount[recipient][token];
 		if (userAmount == 0) {

@@ -15,7 +15,7 @@ contract StakeFacet is YlideStorage {
 	struct RecipientInterfaceArgs {
 		address interfaceAddress;
 		// Percentages denominated in 1e2. 100% = 10000 wei || 0.27% = 27 wei
-		uint256 interfaceCommission;
+		uint256 interfaceCommissionPercentage;
 	}
 
 	struct CancelArgs {
@@ -70,23 +70,23 @@ contract StakeFacet is YlideStorage {
 			ClaimVars memory vars;
 
 			vars.interfaceCommission =
-				(stakeInfoRecipient.amount * args.interfaceCommission) /
+				(stakeInfoRecipient.amount * args.interfaceCommissionPercentage) /
 				10000;
-
-			vars.recipientShare = stakeInfoRecipient.amount - vars.interfaceCommission;
 			s.addressToTokenToAmount[args.interfaceAddress][stakeInfoSender.token] += vars
 				.interfaceCommission;
 
 			vars.ylideCommission =
-				(stakeInfoSender.ylideCommissionPercentage * stakeInfoRecipient.amount) /
+				(stakeInfoRecipient.amount * stakeInfoSender.ylideCommissionPercentage) /
 				10000;
 			s.addressToTokenToAmount[s.ylideBeneficiary][stakeInfoSender.token] += vars
 				.ylideCommission;
 
-			uint256 registrarCommission = (stakeInfoRecipient.registrarCommissionPercentage *
-				stakeInfoRecipient.amount) / 10000;
-			s.addressToTokenToAmount[registrar][stakeInfoSender.token] += registrarCommission;
+			vars.registrarCommission =
+				(stakeInfoRecipient.amount * stakeInfoRecipient.registrarCommissionPercentage) /
+				10000;
+			s.addressToTokenToAmount[registrar][stakeInfoSender.token] += vars.registrarCommission;
 
+			vars.recipientShare = stakeInfoRecipient.amount - vars.interfaceCommission;
 			IERC20(stakeInfoSender.token).safeTransfer(msg.sender, vars.recipientShare);
 			emit StakeClaimed(
 				contentIds[i],
@@ -99,7 +99,7 @@ contract StakeFacet is YlideStorage {
 				s.ylideBeneficiary,
 				vars.ylideCommission,
 				registrar,
-				registrarCommission
+				vars.registrarCommission
 			);
 			unchecked {
 				i++;
@@ -127,11 +127,11 @@ contract StakeFacet is YlideStorage {
 			}
 			stakeInfoSender.canceled = true;
 
-			uint256 ylideCommission = (stakeInfoSender.ylideCommissionPercentage *
-				stakeInfoRecipient.amount) / 10000;
+			uint256 ylideCommission = (stakeInfoRecipient.amount *
+				stakeInfoSender.ylideCommissionPercentage) / 10000;
 
-			uint256 registrarCommission = (stakeInfoRecipient.registrarCommissionPercentage *
-				stakeInfoRecipient.amount) / 10000;
+			uint256 registrarCommission = (stakeInfoRecipient.amount *
+				stakeInfoRecipient.registrarCommissionPercentage) / 10000;
 
 			uint256 wholeAmount = stakeInfoRecipient.amount + ylideCommission + registrarCommission;
 

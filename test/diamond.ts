@@ -403,7 +403,7 @@ describe('Diamond', () => {
 		await expect(
 			stakeFacet
 				.connect(user2)
-				.claim([contentId], { interfaceAddress: user2.address, interfaceCommission: 4000 }),
+				.claim([contentId], { interfaceAddress: user2.address, interfaceCommissionPercentage: 4000 }),
 		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
 		expect(await erc20.balanceOf(user1.address)).equal(1100);
 		expect(await erc20.balanceOf(user2.address)).equal(0);
@@ -486,7 +486,7 @@ describe('Diamond', () => {
 			stakeFacet.connect(owner).claim([contentId], {
 				interfaceAddress: referrerInterface.address,
 				// 40% interface commission
-				interfaceCommission: 4000,
+				interfaceCommissionPercentage: 4000,
 			}),
 		).to.be.revertedWithCustomError(stakeFacet, 'NoRegistrar');
 
@@ -494,21 +494,28 @@ describe('Diamond', () => {
 			stakeFacet.connect(user2).claim([contentId.add(1)], {
 				interfaceAddress: referrerInterface.address,
 				// 40% interface commission
-				interfaceCommission: 4000,
+				interfaceCommissionPercentage: 4000,
 			}),
 		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
+		await expect(
+			stakeFacet.connect(user2).claim([contentId], {
+				interfaceAddress: ethers.constants.AddressZero,
+				// 40% interface commission
+				interfaceCommissionPercentage: 4000,
+			}),
+		).to.be.revertedWithCustomError(stakeFacet, 'NoInterface');
 
 		await stakeFacet.connect(user2).claim([contentId], {
 			interfaceAddress: referrerInterface.address,
 			// 40% interface commission
-			interfaceCommission: 4000,
+			interfaceCommissionPercentage: 4000,
 		});
 
 		await expect(
 			stakeFacet.connect(user2).claim([contentId], {
 				interfaceAddress: referrerInterface.address,
 				// 40% interface commission
-				interfaceCommission: 4000,
+				interfaceCommissionPercentage: 4000,
 			}),
 		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
 		await expect(
@@ -627,7 +634,7 @@ describe('Diamond', () => {
 			stakeFacet.connect(user2).claim([contentId], {
 				interfaceAddress: referrerInterface.address,
 				// 40% interface commission
-				interfaceCommission: 4000,
+				interfaceCommissionPercentage: 4000,
 			}),
 		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
 	});

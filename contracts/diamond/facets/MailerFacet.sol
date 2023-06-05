@@ -200,6 +200,7 @@ contract MailerFacet is YlideStorage {
 					token
 				);
 				if (amount > 0) {
+					// should not happen even for tokens with 18 decimals
 					if (uint160(amount) < amount) revert();
 					uint16 registrarCommissionPercentage = s.registrarToCommissionPercentage[
 						s.addressToPublicKey[address(uint160(args[i].recipient))].registrar
