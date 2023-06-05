@@ -164,10 +164,19 @@ abstract contract YlideStorage {
 		uint256 previousFeedJoinEventsIndex
 	);
 
+	event StakeCreated(
+		uint256 indexed contentId,
+		address indexed sender,
+		uint256 indexed recipient,
+		address token,
+		uint256 amount
+	);
+
 	event StakeClaimed(
 		uint256 indexed contentId,
-		address indexed token,
+		address indexed sender,
 		uint256 indexed recipient,
+		address token,
 		uint256 recipientShare,
 		address interfaceAddress,
 		uint256 interfaceCommission,
@@ -179,10 +188,32 @@ abstract contract YlideStorage {
 
 	event StakeCancelled(
 		uint256 indexed contentId,
-		address indexed token,
+		address indexed sender,
 		uint256 indexed recipient,
+		address token,
 		uint256 amount
 	);
 
 	event WithdrawnRewards(address indexed user, address indexed token, uint256 amount);
+
+	event RecipientChangedPaywall(uint256 indexed recipient, address indexed token, uint256 amount);
+
+	event RecipientChangedWhitelist(
+		uint256 indexed recipient,
+		address indexed sender,
+		bool isWhitelisted
+	);
+
+	event DefaultChangedPaywall(address indexed token, uint256 amount);
+
+	event FeeChanged(uint256 contentPartFee, uint256 recipientFee, uint256 broadcastFee);
+	event PricesChanged(uint256 broadcastFeedCreationPrice, uint256 mailingFeedCreationPrice);
+	event YlideBeneficiaryChanged(address newBeneficiary);
+	event BouncerChanged(address bouncer, bool isEnabled);
+	event BonusesChanged(uint256 newcomerBonus, uint256 referrerBonus);
+	event MailingFeedFeeChanged(uint256 feedId, uint256 fee);
+	event BroadcastFeedFeeChanged(uint256 feedId, uint256 fee);
+	event StakeLockUpPeriodChanged(uint256 newLockup);
+	event YlideCommissionPercentageChanged(uint256 newCommission);
+	event RegistrarCommissionPercentageChanged(address registrar, uint256 newCommission);
 }

@@ -215,6 +215,7 @@ contract MailerFacet is YlideStorage {
 					});
 					amountSum += amount;
 					registrarsSum += ((registrarCommissionPercentage * amount) / 10000);
+					emit StakeCreated(contentId, msg.sender, args[i].recipient, token, amount);
 				}
 				_emitMailPush(feedId, msg.sender, contentId, args[i], amount > 0);
 			}

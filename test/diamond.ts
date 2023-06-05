@@ -3,7 +3,7 @@ import { expect } from 'chai';
 import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
 import { FacetCut, FacetCutAction } from '../scripts/types';
-import { getSelectors, mine } from '../scripts/utils';
+import { getSelectors, mine, whitelistedOneself } from '../scripts/utils';
 import { MockERC20 } from '../typechain-types';
 
 describe('Diamond', () => {
@@ -50,7 +50,7 @@ describe('Diamond', () => {
 			});
 		}
 		// cut diamond facets
-		const diamondCut = await ethers.getContractAt('IDiamondCut', diamond.address);
+		const diamondCut = await ethers.getContractAt('DiamondCutFacet', diamond.address);
 		await diamondCut.diamondCut(cut, ethers.constants.AddressZero, []);
 	});
 
@@ -64,8 +64,27 @@ describe('Diamond', () => {
 			.getContractFactory('MailerFacet')
 			.then(f => f.deploy())
 			.then(c => c.deployed());
-		const diamondCut = await ethers.getContractAt('IDiamondCut', diamondAddress);
-		await diamondCut.diamondCut(
+		const diamondCut = await ethers.getContractAt('DiamondCutFacet', diamondAddress);
+		// only owner can exchange facets
+		await expect(
+			diamondCut.connect(user1).diamondCut(
+				[
+					{
+						facetAddress: ethers.constants.AddressZero,
+						action: FacetCutAction.Remove,
+						functionSelectors: getSelectors(mockMailerFacet),
+					},
+					{
+						facetAddress: mailerFacet.address,
+						action: FacetCutAction.Add,
+						functionSelectors: getSelectors(mailerFacet),
+					},
+				],
+				ethers.constants.AddressZero,
+				[],
+			),
+		).to.be.revertedWithCustomError(diamondCut, 'MustBeContractOwner');
+		await diamondCut.connect(owner).diamondCut(
 			[
 				{
 					facetAddress: ethers.constants.AddressZero,
@@ -93,8 +112,13 @@ describe('Diamond', () => {
 		const registryFacet = await ethers.getContractAt('RegistryFacet', diamondAddress);
 		const publicKey = 123;
 		const keyVersion = 1;
+		expect(await whitelistedOneself(configFacet, user1.address)).equal(false);
+		expect(await whitelistedOneself(configFacet, user2.address)).equal(false);
 		await registryFacet.connect(user1).attachPublicKey(publicKey, keyVersion, registrar1.address);
 		await registryFacet.connect(user2).attachPublicKey(publicKey, keyVersion, registrar2.address);
+		// user should have whitelisted themselves
+		expect(await whitelistedOneself(configFacet, user1.address)).equal(true);
+		expect(await whitelistedOneself(configFacet, user2.address)).equal(true);
 		const registryInfo = await configFacet.addressToPublicKey(user1.address);
 		expect(registryInfo.publicKey).equal(publicKey);
 		expect(registryInfo.keyVersion).equal(keyVersion);
@@ -192,6 +216,9 @@ describe('Diamond', () => {
 	it('should manage pay wall', async () => {
 		const configFacet = await ethers.getContractAt('ConfigFacet', diamondAddress);
 
+		await expect(
+			configFacet.connect(user1).addAllowedTokens([user2.address, erc20.address, owner.address, erc20_2.address]),
+		).to.be.revertedWithCustomError(configFacet, 'MustBeContractOwner');
 		await configFacet
 			.connect(owner)
 			.addAllowedTokens([user2.address, erc20.address, owner.address, erc20_2.address]);
@@ -202,6 +229,13 @@ describe('Diamond', () => {
 			erc20_2.address,
 		]);
 
+		await expect(
+			configFacet.connect(user1).setPaywallDefault([
+				{ token: user2.address, amount: 1 },
+				{ token: owner.address, amount: 2 },
+				{ token: erc20.address, amount: 999 },
+			]),
+		).to.be.revertedWithCustomError(configFacet, 'MustBeContractOwner');
 		await configFacet.connect(owner).setPaywallDefault([
 			{ token: user2.address, amount: 1 },
 			{ token: owner.address, amount: 2 },
@@ -252,14 +286,25 @@ describe('Diamond', () => {
 		expect(await configFacet.recipientToPaywallTokenToAmount(user2.address, owner.address)).equal(0);
 		expect(await configFacet.recipientToPaywallTokenToAmount(user2.address, erc20_2.address)).equal(2000);
 
+		await expect(
+			configFacet.connect(user1).removeAllowedTokens([user2.address, owner.address]),
+		).to.be.revertedWithCustomError(configFacet, 'MustBeContractOwner');
 		await configFacet.connect(owner).removeAllowedTokens([user2.address, owner.address]);
 		expect(await configFacet.allowedTokens()).deep.equal([erc20_2.address, erc20.address]);
 	});
 
 	it('should correctly set fees for pay for attention', async () => {
 		const configFacet = await ethers.getContractAt('ConfigFacet', diamondAddress);
+		await expect(configFacet.connect(user1).setStakeLockUpPeriod(100)).to.be.revertedWithCustomError(
+			configFacet,
+			'MustBeContractOwner',
+		);
 		await configFacet.connect(owner).setStakeLockUpPeriod(100);
 		// 4% ylide commission
+		await expect(configFacet.connect(user1).setYlideCommissionPercentage(400)).to.be.revertedWithCustomError(
+			configFacet,
+			'MustBeContractOwner',
+		);
 		await configFacet.connect(owner).setYlideCommissionPercentage(400);
 		// 6% registrar commission
 		await configFacet.connect(registrar1).setRegistrarToCommissionPercentage(600);

@@ -87,8 +87,9 @@ contract StakeFacet is YlideStorage {
 			IERC20(stakeInfoSender.token).safeTransfer(msg.sender, vars.recipientShare);
 			emit StakeClaimed(
 				contentIds[i],
-				stakeInfoSender.token,
+				stakeInfoSender.sender,
 				uint160(msg.sender),
+				stakeInfoSender.token,
 				vars.recipientShare,
 				args.interfaceAddress,
 				vars.interfaceCommission,
@@ -134,8 +135,9 @@ contract StakeFacet is YlideStorage {
 			IERC20(stakeInfoSender.token).safeTransfer(stakeInfoSender.sender, wholeAmount);
 			emit StakeCancelled(
 				cancelArgs[i].contentId,
-				stakeInfoSender.token,
+				msg.sender,
 				cancelArgs[i].recipient,
+				stakeInfoSender.token,
 				wholeAmount
 			);
 			unchecked {

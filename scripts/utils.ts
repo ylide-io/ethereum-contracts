@@ -1,6 +1,7 @@
 import { ethers, network } from 'hardhat';
 import { Snapshot } from './types';
 import { Contract } from 'ethers';
+import { ConfigFacet } from '../typechain-types';
 
 export function toWei(amount: string | number) {
 	return ethers.utils.parseUnits(String(amount), 18);
@@ -48,3 +49,14 @@ export async function mine(sleepDuration?: number) {
 
 	return ethers.provider.send('evm_mine', []);
 }
+
+export const whitelistedOneself = async (contract: ConfigFacet, userAddress: string) => {
+	const [r1, r2] = await Promise.all([
+		contract.recipientToWhitelistedSender(userAddress, userAddress),
+		contract.recipientToWhitelistedSender(
+			ethers.utils.sha256(ethers.utils.defaultAbiCoder.encode(['address'], [userAddress])),
+			userAddress,
+		),
+	]);
+	return r1 && r2;
+};

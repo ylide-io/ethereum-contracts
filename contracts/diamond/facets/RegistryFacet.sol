@@ -79,6 +79,9 @@ contract RegistryFacet is YlideStorage {
 			keyVersion,
 			registrar
 		);
+		// TODO: white list oneself during key attachment?
+		s.recipientToWhitelistedSender[uint160(addr)][addr] = true;
+		s.recipientToWhitelistedSender[uint256(sha256(abi.encode(addr)))][addr] = true;
 		emit KeyAttached(addr, publicKey, keyVersion, registrar, index);
 	}
 

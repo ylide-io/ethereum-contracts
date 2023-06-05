@@ -125,8 +125,8 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		return s.addressToPublicKey[addr];
 	}
 
-	function owner() external view override returns (address owner_) {
-		owner_ = s.contractOwner;
+	function owner() external view override returns (address) {
+		return s.contractOwner;
 	}
 
 	function addressToTokenToAmount(address addr, address token) external view returns (uint256) {
@@ -157,12 +157,6 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		address sender
 	) external view returns (bool) {
 		return s.recipientToWhitelistedSender[recipient][sender];
-	}
-
-	function userSelfWhitelisted(address user) external view returns (bool) {
-		return
-			s.recipientToWhitelistedSender[uint160(user)][user] &&
-			s.recipientToWhitelistedSender[uint256(sha256(abi.encode(user)))][user];
 	}
 
 	function contentIdToStakeInfoSender(
@@ -240,6 +234,7 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		s.contentPartFee = _contentPartFee;
 		s.recipientFee = _recipientFee;
 		s.broadcastFee = _broadcastFee;
+		emit FeeChanged(_contentPartFee, _recipientFee, _broadcastFee);
 	}
 
 	function setPrices(
@@ -249,17 +244,20 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		Owner.enforceIsContractOwner(s);
 		s.broadcastFeedCreationPrice = _broadcastFeedCreationPrice;
 		s.mailingFeedCreationPrice = _mailingFeedCreationPrice;
+		emit PricesChanged(_broadcastFeedCreationPrice, _mailingFeedCreationPrice);
 	}
 
 	function setYlideBeneficiary(address payable _ylideBeneficiary) external {
 		Owner.enforceIsContractOwner(s);
 		s.ylideBeneficiary = _ylideBeneficiary;
+		emit YlideBeneficiaryChanged(_ylideBeneficiary);
 	}
 
-	function setBouncer(address newBouncer, bool val) external {
+	function setBouncer(address bouncer, bool isEnabled) external {
 		Owner.enforceIsContractOwner(s);
-		if (newBouncer != address(0)) {
-			s.bouncers[newBouncer] = val;
+		if (bouncer != address(0)) {
+			s.bouncers[bouncer] = isEnabled;
+			emit BouncerChanged(bouncer, isEnabled);
 		}
 	}
 
@@ -267,16 +265,19 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		Owner.enforceIsContractOwner(s);
 		s.newcomerBonus = _newcomerBonus;
 		s.referrerBonus = _referrerBonus;
+		emit BonusesChanged(_newcomerBonus, _referrerBonus);
 	}
 
 	function setMailingFeedFees(uint256 feedId, uint256 _recipientFee) external {
 		_validateFeedOwner(feedId);
 		s.mailingFeeds[feedId].recipientFee = _recipientFee;
+		emit MailingFeedFeeChanged(feedId, _recipientFee);
 	}
 
 	function setBroadcastFeedFees(uint256 feedId, uint256 _broadcastFee) external {
 		_validateBroadCastFeedOwner(feedId);
 		s.broadcastFeeds[feedId].broadcastFee = _broadcastFee;
+		emit BroadcastFeedFeeChanged(feedId, _broadcastFee);
 	}
 
 	function transferMailingFeedOwnership(uint256 feedId, address newOwner) external {
@@ -331,20 +332,24 @@ contract ConfigFacet is YlideStorage, IERC173 {
 	function setStakeLockUpPeriod(uint256 _stakeLockUpPeriod) external {
 		Owner.enforceIsContractOwner(s);
 		s.stakeLockUpPeriod = _stakeLockUpPeriod;
+		emit StakeLockUpPeriodChanged(_stakeLockUpPeriod);
 	}
 
 	function setYlideCommissionPercentage(uint16 _ylideCommissionPercentage) external {
 		Owner.enforceIsContractOwner(s);
 		s.ylideCommissionPercentage = _ylideCommissionPercentage;
+		emit YlideCommissionPercentageChanged(_ylideCommissionPercentage);
 	}
 
 	function setRegistrarToCommissionPercentage(uint16 commissionPercentage) external {
 		s.registrarToCommissionPercentage[msg.sender] = commissionPercentage;
+		emit RegistrarCommissionPercentageChanged(msg.sender, commissionPercentage);
 	}
 
 	function setPaywall(PayWallArgs[] calldata args) external {
 		for (uint256 i; i < args.length; ) {
 			s.recipientToPaywallTokenToAmount[uint160(msg.sender)][args[i].token] = args[i].amount;
+			emit RecipientChangedPaywall(uint160(msg.sender), args[i].token, args[i].amount);
 			unchecked {
 				i++;
 			}
@@ -354,21 +359,18 @@ contract ConfigFacet is YlideStorage, IERC173 {
 	function whitelistSenders(WhitelistArgs[] calldata args) external {
 		for (uint256 i; i < args.length; ) {
 			s.recipientToWhitelistedSender[uint160(msg.sender)][args[i].sender] = args[i].status;
+			emit RecipientChangedWhitelist(uint160(msg.sender), args[i].sender, args[i].status);
 			unchecked {
 				i++;
 			}
 		}
 	}
 
-	function whitelistOneself() external {
-		s.recipientToWhitelistedSender[uint160(msg.sender)][msg.sender] = true;
-		s.recipientToWhitelistedSender[uint256(sha256(abi.encode(msg.sender)))][msg.sender] = true;
-	}
-
 	function setPaywallDefault(PayWallArgs[] calldata args) external {
 		Owner.enforceIsContractOwner(s);
 		for (uint256 i; i < args.length; ) {
 			s.defaultPaywallTokenToAmount[args[i].token] = args[i].amount;
+			emit DefaultChangedPaywall(args[i].token, args[i].amount);
 			unchecked {
 				i++;
 			}
