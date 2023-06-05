@@ -87,7 +87,6 @@ contract StakeFacet is YlideStorage {
 			s.addressToTokenToAmount[registrar][stakeInfoSender.token] += vars.registrarCommission;
 
 			vars.recipientShare = stakeInfoRecipient.amount - vars.interfaceCommission;
-			IERC20(stakeInfoSender.token).safeTransfer(msg.sender, vars.recipientShare);
 			emit StakeClaimed(
 				contentIds[i],
 				stakeInfoSender.sender,
@@ -101,6 +100,7 @@ contract StakeFacet is YlideStorage {
 				registrar,
 				vars.registrarCommission
 			);
+			IERC20(stakeInfoSender.token).safeTransfer(msg.sender, vars.recipientShare);
 			unchecked {
 				i++;
 			}
@@ -135,7 +135,6 @@ contract StakeFacet is YlideStorage {
 
 			uint256 wholeAmount = stakeInfoRecipient.amount + ylideCommission + registrarCommission;
 
-			IERC20(stakeInfoSender.token).safeTransfer(stakeInfoSender.sender, wholeAmount);
 			emit StakeCancelled(
 				cancelArgs[i].contentId,
 				msg.sender,
@@ -143,6 +142,7 @@ contract StakeFacet is YlideStorage {
 				stakeInfoSender.token,
 				wholeAmount
 			);
+			IERC20(stakeInfoSender.token).safeTransfer(stakeInfoSender.sender, wholeAmount);
 			unchecked {
 				i++;
 			}
@@ -156,7 +156,7 @@ contract StakeFacet is YlideStorage {
 			revert NothingToWithdraw();
 		}
 		s.addressToTokenToAmount[msg.sender][token] = 0;
-		IERC20(token).safeTransfer(msg.sender, amount);
 		emit WithdrawnRewards(msg.sender, token, amount);
+		IERC20(token).safeTransfer(msg.sender, amount);
 	}
 }

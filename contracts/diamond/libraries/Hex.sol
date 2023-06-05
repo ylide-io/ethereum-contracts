@@ -14,16 +14,6 @@ library Hex {
 		return converted;
 	}
 
-	function uint32ToHex(bytes4 buffer) internal pure returns (bytes memory) {
-		bytes memory converted = new bytes(8);
-		for (uint8 i = 0; i < 4; i++) {
-			converted[i * 2] = _SYMBOLS[uint8(buffer[i]) / _SYMBOLS.length];
-			converted[i * 2 + 1] = _SYMBOLS[uint8(buffer[i]) % _SYMBOLS.length];
-		}
-
-		return converted;
-	}
-
 	function uint64ToHex(bytes8 buffer) internal pure returns (bytes memory) {
 		bytes memory converted = new bytes(16);
 		for (uint8 i = 0; i < 8; i++) {

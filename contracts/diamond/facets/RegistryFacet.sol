@@ -37,14 +37,13 @@ contract RegistryFacet is YlideStorage {
 			revert TimestampOld();
 		}
 		bytes memory prefix = "\x19Ethereum Signed Message:\n330";
-		// (121 + 2) + (14 + 64 + 1) + (13 + 8 + 1) + (12 + 64 + 1) + (13 + 16 + 0)
 		bytes memory _msg = abi.encodePacked(
 			"I authorize Ylide Faucet to publish my public key on my behalf to eliminate gas costs on my transaction for five minutes.\n\n",
 			"Public key: 0x",
 			Hex.uint256ToHex(publicKey),
 			"\n",
 			"Registrar: 0x",
-			Hex.uint256ToHex(bytes32(uint256(uint160(registrar)))),
+			bytes20(registrar),
 			"\n",
 			"Chain ID: 0x",
 			Hex.uint256ToHex(bytes32(block.chainid)),
