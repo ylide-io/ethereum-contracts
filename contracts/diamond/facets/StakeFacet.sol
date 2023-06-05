@@ -53,7 +53,7 @@ contract StakeFacet is YlideStorage {
 		if (args.interfaceAddress == address(0)) {
 			revert NoInterface();
 		}
-		for (uint256 i; i < contentIds.length; ) {
+		for (uint256 i = 0; i < contentIds.length; i++) {
 			StakeInfoSender memory stakeInfoSender = s.contentIdToStakeInfoSender[contentIds[i]];
 			StakeInfoRecipient storage stakeInfoRecipient = s.contentIdToRecipientToStakeInfo[
 				contentIds[i]
@@ -101,15 +101,12 @@ contract StakeFacet is YlideStorage {
 				vars.registrarCommission
 			);
 			IERC20(stakeInfoSender.token).safeTransfer(msg.sender, vars.recipientShare);
-			unchecked {
-				i++;
-			}
 		}
 	}
 
 	// called by sender of message
 	function cancel(CancelArgs[] calldata cancelArgs) external {
-		for (uint256 i; i < cancelArgs.length; ) {
+		for (uint256 i = 0; i < cancelArgs.length; i++) {
 			StakeInfoSender storage stakeInfoSender = s.contentIdToStakeInfoSender[
 				cancelArgs[i].contentId
 			];
@@ -143,9 +140,6 @@ contract StakeFacet is YlideStorage {
 				wholeAmount
 			);
 			IERC20(stakeInfoSender.token).safeTransfer(stakeInfoSender.sender, wholeAmount);
-			unchecked {
-				i++;
-			}
 		}
 	}
 

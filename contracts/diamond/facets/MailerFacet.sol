@@ -179,7 +179,7 @@ contract MailerFacet is YlideStorage {
 		address token,
 		MailArgs[] calldata args
 	) internal {
-		uint256 sum;
+		uint256 sum = 0;
 		// contentId replay should not happen - revert
 		if (s.contentIdToStakeInfoSender[contentId].sender != address(0)) {
 			revert ContentIdReplay();
@@ -190,9 +190,9 @@ contract MailerFacet is YlideStorage {
 			if (!s.allowedTokens.includes[token]) {
 				revert NotAllowedToken();
 			}
-			uint256 amountSum;
-			uint256 registrarsSum;
-			for (uint i = 0; i < args.length; i++) {
+			uint256 amountSum = 0;
+			uint256 registrarsSum = 0;
+			for (uint256 i = 0; i < args.length; i++) {
 				uint256 amount = PayPerDelivery.calculatePureUserPaywall(
 					s,
 					args[i].recipient,
@@ -231,7 +231,7 @@ contract MailerFacet is YlideStorage {
 				});
 			}
 		} else {
-			for (uint i = 0; i < args.length; i++) {
+			for (uint256 i = 0; i < args.length; i++) {
 				_emitMailPush(feedId, msg.sender, contentId, args[i], false);
 			}
 		}

@@ -22,7 +22,7 @@ contract DiamondLoupeFacet is YlideStorage, IDiamondLoupe, IERC165 {
 	function facets() external view override returns (Facet[] memory facets_) {
 		uint256 numFacets = s.facetAddresses.length;
 		facets_ = new Facet[](numFacets);
-		for (uint256 i; i < numFacets; i++) {
+		for (uint256 i = 0; i < numFacets; i++) {
 			address facetAddress_ = s.facetAddresses[i];
 			facets_[i].facetAddress = facetAddress_;
 			facets_[i].functionSelectors = s

@@ -18,7 +18,7 @@ library Diamond {
 		address _init,
 		bytes memory _calldata
 	) internal {
-		for (uint256 facetIndex; facetIndex < _diamondCut.length; facetIndex++) {
+		for (uint256 facetIndex = 0; facetIndex < _diamondCut.length; facetIndex++) {
 			IDiamondCut.FacetCutAction action = _diamondCut[facetIndex].action;
 			if (action == IDiamondCut.FacetCutAction.Add) {
 				addFunctions(
@@ -60,7 +60,11 @@ library Diamond {
 		if (selectorPosition == 0) {
 			addFacet(s, _facetAddress);
 		}
-		for (uint256 selectorIndex; selectorIndex < _functionSelectors.length; selectorIndex++) {
+		for (
+			uint256 selectorIndex = 0;
+			selectorIndex < _functionSelectors.length;
+			selectorIndex++
+		) {
 			bytes4 selector = _functionSelectors[selectorIndex];
 			address oldFacetAddress = s.selectorToFacetAndPosition[selector].facetAddress;
 			require(
@@ -86,7 +90,11 @@ library Diamond {
 		if (selectorPosition == 0) {
 			addFacet(s, _facetAddress);
 		}
-		for (uint256 selectorIndex; selectorIndex < _functionSelectors.length; selectorIndex++) {
+		for (
+			uint256 selectorIndex = 0;
+			selectorIndex < _functionSelectors.length;
+			selectorIndex++
+		) {
 			bytes4 selector = _functionSelectors[selectorIndex];
 			address oldFacetAddress = s.selectorToFacetAndPosition[selector].facetAddress;
 			require(
@@ -107,7 +115,11 @@ library Diamond {
 		require(_functionSelectors.length > 0, "DiamondCut: No selectors in facet to cut");
 		// if function does not exist then do nothing and return
 		require(_facetAddress == address(0), "DiamondCut: Remove facet address must be address(0)");
-		for (uint256 selectorIndex; selectorIndex < _functionSelectors.length; selectorIndex++) {
+		for (
+			uint256 selectorIndex = 0;
+			selectorIndex < _functionSelectors.length;
+			selectorIndex++
+		) {
 			bytes4 selector = _functionSelectors[selectorIndex];
 			address oldFacetAddress = s.selectorToFacetAndPosition[selector].facetAddress;
 			removeFunction(s, oldFacetAddress, selector);

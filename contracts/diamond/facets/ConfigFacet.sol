@@ -190,16 +190,13 @@ contract ConfigFacet is YlideStorage, IERC173 {
 	) external view returns (PayWallArgs[] memory) {
 		address[] memory _allowedTokens = s.allowedTokens.list;
 		PayWallArgs[] memory payWallOptions = new PayWallArgs[](_allowedTokens.length);
-		for (uint256 i; i < _allowedTokens.length; ) {
+		for (uint256 i = 0; i < _allowedTokens.length; i++) {
 			(uint256 amount, uint256 ylideCommission, uint256 registrarCommission) = PayPerDelivery
 				.calculatePaywall(s, recipient, sender, _allowedTokens[i]);
 			payWallOptions[i] = PayWallArgs(
 				_allowedTokens[i],
 				amount + ylideCommission + registrarCommission
 			);
-			unchecked {
-				i++;
-			}
 		}
 		return payWallOptions;
 	}
@@ -210,13 +207,10 @@ contract ConfigFacet is YlideStorage, IERC173 {
 		address token
 	) external view returns (uint256[] memory) {
 		uint256[] memory result = new uint256[](recipients.length);
-		for (uint256 i; i < recipients.length; ) {
+		for (uint256 i = 0; i < recipients.length; i++) {
 			(uint256 amount, uint256 ylideCommission, uint256 registrarCommission) = PayPerDelivery
 				.calculatePaywall(s, recipients[i], sender, token);
 			result[i] = amount + ylideCommission + registrarCommission;
-			unchecked {
-				i++;
-			}
 		}
 		return result;
 	}
@@ -347,33 +341,24 @@ contract ConfigFacet is YlideStorage, IERC173 {
 	}
 
 	function setPaywall(PayWallArgs[] calldata args) external {
-		for (uint256 i; i < args.length; ) {
+		for (uint256 i = 0; i < args.length; i++) {
 			s.recipientToPaywallTokenToAmount[uint160(msg.sender)][args[i].token] = args[i].amount;
 			emit RecipientChangedPaywall(uint160(msg.sender), args[i].token, args[i].amount);
-			unchecked {
-				i++;
-			}
 		}
 	}
 
 	function whitelistSenders(WhitelistArgs[] calldata args) external {
-		for (uint256 i; i < args.length; ) {
+		for (uint256 i = 0; i < args.length; i++) {
 			s.recipientToWhitelistedSender[uint160(msg.sender)][args[i].sender] = args[i].status;
 			emit RecipientChangedWhitelist(uint160(msg.sender), args[i].sender, args[i].status);
-			unchecked {
-				i++;
-			}
 		}
 	}
 
 	function setPaywallDefault(PayWallArgs[] calldata args) external {
 		Owner.enforceIsContractOwner(s);
-		for (uint256 i; i < args.length; ) {
+		for (uint256 i = 0; i < args.length; i++) {
 			s.defaultPaywallTokenToAmount[args[i].token] = args[i].amount;
 			emit DefaultChangedPaywall(args[i].token, args[i].amount);
-			unchecked {
-				i++;
-			}
 		}
 	}
 

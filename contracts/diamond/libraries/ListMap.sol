@@ -11,13 +11,13 @@ library ListMap {
 	}
 
 	function removeList(_address storage listMap, address[] memory list) internal {
-		for (uint256 i; i < list.length; i++) {
+		for (uint256 i = 0; i < list.length; i++) {
 			remove(listMap, list[i]);
 		}
 	}
 
 	function remove(_address storage listMap, address value) internal {
-		for (uint256 i; i < listMap.list.length; i++) {
+		for (uint256 i = 0; i < listMap.list.length; i++) {
 			if (listMap.list[i] == value) {
 				listMap.list[i] = listMap.list[listMap.list.length - 1];
 				listMap.list.pop();
@@ -29,7 +29,7 @@ library ListMap {
 	}
 
 	function addList(_address storage listMap, address[] memory list) internal {
-		for (uint256 i; i < list.length; i++) {
+		for (uint256 i = 0; i < list.length; i++) {
 			add(listMap, list[i]);
 		}
 	}
