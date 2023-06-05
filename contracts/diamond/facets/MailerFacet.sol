@@ -178,10 +178,8 @@ contract MailerFacet is YlideStorage {
 		uint256 contentId,
 		address token,
 		MailArgs[] calldata args
-	) internal returns (uint256 sum) {
-		// TODO: we should ensure that sending message to yourself is always free
-		// white list oneself while setting up the paywall?
-
+	) internal {
+		uint256 sum;
 		// contentId replay should not happen - revert
 		if (s.contentIdToStakeInfoSender[contentId].sender != address(0)) {
 			revert ContentIdReplay();
@@ -202,10 +200,12 @@ contract MailerFacet is YlideStorage {
 					token
 				);
 				if (amount > 0) {
+					if (uint160(amount) < amount) revert();
 					uint16 registrarCommissionPercentage = s.registrarToCommissionPercentage[
 						s.addressToPublicKey[address(uint160(args[i].recipient))].registrar
 					];
-					if (uint160(amount) < amount) revert();
+					amountSum += amount;
+					registrarsSum += ((registrarCommissionPercentage * amount) / 10000);
 					s.contentIdToRecipientToStakeInfo[contentId][
 						uint160(args[i].recipient)
 					] = StakeInfoRecipient({
@@ -213,22 +213,22 @@ contract MailerFacet is YlideStorage {
 						registrarCommissionPercentage: registrarCommissionPercentage,
 						claimed: false
 					});
-					amountSum += amount;
-					registrarsSum += ((registrarCommissionPercentage * amount) / 10000);
 					emit StakeCreated(contentId, msg.sender, args[i].recipient, token, amount);
 				}
 				_emitMailPush(feedId, msg.sender, contentId, args[i], amount > 0);
 			}
-			uint16 ylideCommissionPercentage = s.ylideCommissionPercentage;
-			s.contentIdToStakeInfoSender[contentId] = StakeInfoSender({
-				token: token,
-				sender: msg.sender,
-				stakeBlockedUntil: block.timestamp + s.stakeLockUpPeriod,
-				canceled: false,
-				ylideCommissionPercentage: ylideCommissionPercentage
-			});
-			uint256 ylideCommission = (ylideCommissionPercentage * amountSum) / 10000;
-			sum = amountSum + ylideCommission + registrarsSum;
+			if (amountSum > 0) {
+				uint16 ylideCommissionPercentage = s.ylideCommissionPercentage;
+				uint256 ylideCommission = (ylideCommissionPercentage * amountSum) / 10000;
+				sum = amountSum + ylideCommission + registrarsSum;
+				s.contentIdToStakeInfoSender[contentId] = StakeInfoSender({
+					token: token,
+					sender: msg.sender,
+					stakeBlockedUntil: block.timestamp + s.stakeLockUpPeriod,
+					canceled: false,
+					ylideCommissionPercentage: ylideCommissionPercentage
+				});
+			}
 		} else {
 			for (uint i = 0; i < args.length; i++) {
 				_emitMailPush(feedId, msg.sender, contentId, args[i], false);
@@ -250,13 +250,12 @@ contract MailerFacet is YlideStorage {
 		MailArgs[] calldata args,
 		address token,
 		bytes calldata content
-	) external payable returns (uint256) {
+	) external payable {
 		uint256 contentId = _buildContentId(msg.sender, uniqueId, block.number, 1, 0);
 		emit MessageContent(contentId, msg.sender, 1, 0, content);
 		_sendMessageAndPayPerDelivery(feedId, contentId, token, args);
 		_payOut(1, args.length, 0);
 		_payOutMailingFeed(feedId, args.length);
-		return contentId;
 	}
 
 	function addMailRecipients(
@@ -267,7 +266,7 @@ contract MailerFacet is YlideStorage {
 		uint256 firstBlockNumber,
 		uint16 partsCount,
 		uint16 blockCountLock
-	) external payable returns (uint256) {
+	) external payable {
 		_validateBlockLock(firstBlockNumber, blockCountLock);
 		uint256 contentId = _buildContentId(
 			msg.sender,
@@ -279,7 +278,6 @@ contract MailerFacet is YlideStorage {
 		_sendMessageAndPayPerDelivery(feedId, contentId, token, args);
 		_payOut(0, args.length, 0);
 		_payOutMailingFeed(feedId, args.length);
-		return contentId;
 	}
 
 	function sendBroadcast(
@@ -287,7 +285,7 @@ contract MailerFacet is YlideStorage {
 		uint256 feedId,
 		uint256 uniqueId,
 		bytes calldata content
-	) external payable returns (uint256) {
+	) external payable {
 		_validateAccessToBroadcastFeed(isPersonal, feedId);
 
 		uint256 composedFeedId = isPersonal
@@ -303,8 +301,6 @@ contract MailerFacet is YlideStorage {
 		if (!isPersonal) {
 			_payOutBroadcastFeed(feedId, 1);
 		}
-
-		return contentId;
 	}
 
 	function sendBroadcastHeader(
@@ -314,7 +310,7 @@ contract MailerFacet is YlideStorage {
 		uint256 firstBlockNumber,
 		uint16 partsCount,
 		uint16 blockCountLock
-	) external payable returns (uint256) {
+	) external payable {
 		_validateAccessToBroadcastFeed(isPersonal, feedId);
 
 		uint256 composedFeedId = isPersonal
@@ -335,8 +331,6 @@ contract MailerFacet is YlideStorage {
 		if (!isPersonal) {
 			_payOutBroadcastFeed(feedId, 1);
 		}
-
-		return contentId;
 	}
 
 	// For sending content part - for broadcast or not
@@ -347,7 +341,7 @@ contract MailerFacet is YlideStorage {
 		uint16 parts,
 		uint16 partIdx,
 		bytes calldata content
-	) external payable returns (uint256) {
+	) external payable {
 		_validateBlockLock(firstBlockNumber, blockCountLock);
 
 		uint256 contentId = _buildContentId(
@@ -360,11 +354,9 @@ contract MailerFacet is YlideStorage {
 		emit MessageContent(contentId, msg.sender, parts, partIdx, content);
 
 		_payOut(1, 0, 0);
-
-		return contentId;
 	}
 
-	function createMailingFeed(uint256 uniqueId) external payable returns (uint256) {
+	function createMailingFeed(uint256 uniqueId) external payable {
 		uint256 feedId = uint256(keccak256(abi.encodePacked(msg.sender, uint256(0), uniqueId)));
 
 		if (s.mailingFeeds[feedId].owner != address(0)) {
@@ -379,14 +371,9 @@ contract MailerFacet is YlideStorage {
 		}
 
 		emit MailingFeedCreated(feedId, msg.sender);
-
-		return feedId;
 	}
 
-	function createBroadcastFeed(
-		uint256 uniqueId,
-		bool isPublic
-	) external payable returns (uint256) {
+	function createBroadcastFeed(uint256 uniqueId, bool isPublic) external payable {
 		uint256 feedId = uint256(keccak256(abi.encodePacked(msg.sender, uint256(0), uniqueId)));
 
 		if (s.broadcastFeeds[feedId].owner != address(0)) {
@@ -405,7 +392,5 @@ contract MailerFacet is YlideStorage {
 		}
 
 		emit BroadcastFeedCreated(feedId, msg.sender);
-
-		return feedId;
 	}
 }

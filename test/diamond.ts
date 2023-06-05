@@ -400,6 +400,11 @@ describe('Diamond', () => {
 		await expect(
 			stakeFacet.connect(user1).cancel([{ contentId: contentId, recipient: user2.address }]),
 		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
+		await expect(
+			stakeFacet
+				.connect(user2)
+				.claim([contentId], { interfaceAddress: user2.address, interfaceCommission: 4000 }),
+		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
 		expect(await erc20.balanceOf(user1.address)).equal(1100);
 		expect(await erc20.balanceOf(user2.address)).equal(0);
 		expect(await erc20.balanceOf(diamondAddress)).equal(0);
@@ -506,6 +511,9 @@ describe('Diamond', () => {
 				interfaceCommission: 4000,
 			}),
 		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
+		await expect(
+			stakeFacet.connect(user1).cancel([{ contentId: contentId, recipient: user2.address }]),
+		).to.be.revertedWithCustomError(stakeFacet, 'NothingToWithdraw');
 
 		expect(await erc20.balanceOf(user2.address)).equal(600);
 		expect(await erc20.balanceOf(diamondAddress)).equal(500);
@@ -606,13 +614,10 @@ describe('Diamond', () => {
 			}
 		}
 
-		const timestamp = await ethers.provider.getBlock(currentBlock).then(block => block.timestamp);
-		const lockupPeriod = await configFacet.stakeLockUpPeriod();
-
 		const stakeInfoSender = await configFacet.contentIdToStakeInfoSender(contentId);
-		expect(stakeInfoSender.token).equal(erc20.address);
-		expect(stakeInfoSender.sender).equal(user1.address);
-		expect(stakeInfoSender.stakeBlockedUntil).equal(lockupPeriod.add(timestamp));
+		expect(stakeInfoSender.token).equal(ethers.constants.AddressZero);
+		expect(stakeInfoSender.sender).equal(ethers.constants.AddressZero);
+		expect(stakeInfoSender.stakeBlockedUntil).equal(0);
 		expect(stakeInfoSender.canceled).to.be.false;
 
 		const result = await configFacet.contentIdToRecipientToStakeInfo(contentId, user2.address);

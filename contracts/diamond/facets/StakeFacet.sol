@@ -38,6 +38,7 @@ contract StakeFacet is YlideStorage {
 	error StakeLockUp();
 	error NothingToWithdraw();
 	error NoRegistrar();
+	error NoInterface();
 
 	// ================================
 	// ===== External methods =========
@@ -49,8 +50,11 @@ contract StakeFacet is YlideStorage {
 		if (registrar == address(0)) {
 			revert NoRegistrar();
 		}
+		if (args.interfaceAddress == address(0)) {
+			revert NoInterface();
+		}
 		for (uint256 i; i < contentIds.length; ) {
-			StakeInfoSender storage stakeInfoSender = s.contentIdToStakeInfoSender[contentIds[i]];
+			StakeInfoSender memory stakeInfoSender = s.contentIdToStakeInfoSender[contentIds[i]];
 			StakeInfoRecipient storage stakeInfoRecipient = s.contentIdToRecipientToStakeInfo[
 				contentIds[i]
 			][uint160(msg.sender)];
@@ -61,16 +65,15 @@ contract StakeFacet is YlideStorage {
 			) {
 				revert NothingToWithdraw();
 			}
+			stakeInfoRecipient.claimed = true;
 
 			ClaimVars memory vars;
 
 			vars.interfaceCommission =
 				(stakeInfoRecipient.amount * args.interfaceCommission) /
 				10000;
+
 			vars.recipientShare = stakeInfoRecipient.amount - vars.interfaceCommission;
-
-			stakeInfoRecipient.claimed = true;
-
 			s.addressToTokenToAmount[args.interfaceAddress][stakeInfoSender.token] += vars
 				.interfaceCommission;
 
@@ -110,7 +113,7 @@ contract StakeFacet is YlideStorage {
 			StakeInfoSender storage stakeInfoSender = s.contentIdToStakeInfoSender[
 				cancelArgs[i].contentId
 			];
-			StakeInfoRecipient storage stakeInfoRecipient = s.contentIdToRecipientToStakeInfo[
+			StakeInfoRecipient memory stakeInfoRecipient = s.contentIdToRecipientToStakeInfo[
 				cancelArgs[i].contentId
 			][cancelArgs[i].recipient];
 			if (stakeInfoSender.sender != msg.sender) {
