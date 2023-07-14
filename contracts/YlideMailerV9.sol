@@ -29,6 +29,7 @@ contract YlideMailerV9 is
 	mapping(address => uint256) public nonces;
 
 	mapping(address => bool) public isYlide;
+	address payable public extraTreasury;
 
 	struct BroadcastFeedV9 {
 		address owner;
@@ -62,6 +63,7 @@ contract YlideMailerV9 is
 		address indexed sender,
 		uint256 indexed feedId,
 		uint256 contentId,
+		uint256 extraPayment,
 		uint256 previousFeedEventsIndex
 	);
 
@@ -104,6 +106,8 @@ contract YlideMailerV9 is
 	error IsNotYlide();
 
 	constructor() EIP712("YlideMailerV9", "9") {
+		extraTreasury = payable(msg.sender);
+
 		mailingFeeds[0].owner = msg.sender; // regular mail
 		mailingFeeds[0].beneficiary = payable(msg.sender);
 
@@ -173,9 +177,13 @@ contract YlideMailerV9 is
 		}
 	}
 
-	function validateAccessToBroadcastFeed(bool isPersonal, uint256 feedId) internal view {
+	function validateAccessToBroadcastFeed(bool isPersonal, bool isGenericFeed, uint256 feedId) internal view {
+		if (isPersonal && isGenericFeed) {
+			revert FeedNotAllowed();
+		}
 		if (
 			!isPersonal &&
+			!isGenericFeed &&
 			!broadcastFeeds[feedId].isPublic &&
 			broadcastFeeds[feedId].writers[msg.sender] != true
 		) {
@@ -197,6 +205,12 @@ contract YlideMailerV9 is
 			}
 		}
 	}
+
+	function setExtraTreasury(address payable newExtraTreasury) public onlyOwner {
+        if (newExtraTreasury != address(0)) {
+            extraTreasury = newExtraTreasury;
+        }
+    }
 
 	function setIsYlide(
 		address[] calldata ylideContracts,
@@ -474,29 +488,34 @@ contract YlideMailerV9 is
 	 * sendBroadcastHeader - for emitting broadcast header after uploading all parts of the content
 	 */
 
-	function emitBroadcastPush(address sender, uint256 feedId, uint256 contentId) internal {
+	function emitBroadcastPush(address sender, uint256 feedId, uint256 contentId, uint256 extraPayment) internal {
 		uint256 current = broadcastFeeds[feedId].messagesIndex;
 		broadcastFeeds[feedId].messagesIndex = storeBlockNumber(current, block.number / 128);
 		broadcastFeeds[feedId].messagesCount += 1;
-		emit BroadcastPush(sender, feedId, contentId, current);
+		extraTreasury.transfer(extraPayment);
+		emit BroadcastPush(sender, feedId, contentId, extraPayment, current);
 	}
 
 	function sendBroadcast(
 		bool isPersonal,
+		bool isGenericFeed,
+		uint256 extraPayment,
 		uint256 feedId,
 		uint256 uniqueId,
 		bytes calldata content
 	) public payable notTerminated returns (uint256) {
-		validateAccessToBroadcastFeed(isPersonal, feedId);
+		validateAccessToBroadcastFeed(isPersonal, isGenericFeed, feedId);
 
 		uint256 composedFeedId = isPersonal
 			? uint256(sha256(abi.encodePacked(msg.sender, uint256(1), feedId)))
-			: feedId;
+			: isGenericFeed
+				? uint256(sha256(abi.encodePacked(address(0x0000000000000000000000000000000000000000), uint256(2), feedId)))
+				: feedId;
 
 		uint256 contentId = buildContentId(msg.sender, uniqueId, block.number, 1, 0);
 
 		emit MessageContent(contentId, msg.sender, 1, 0, content);
-		emitBroadcastPush(msg.sender, composedFeedId, contentId);
+		emitBroadcastPush(msg.sender, composedFeedId, contentId, extraPayment);
 
 		payOut(1, 0, 1);
 		if (!isPersonal) {
@@ -508,17 +527,21 @@ contract YlideMailerV9 is
 
 	function sendBroadcastHeader(
 		bool isPersonal,
+		bool isGenericFeed,
+		uint256 extraPayment,
 		uint256 feedId,
 		uint256 uniqueId,
 		uint256 firstBlockNumber,
 		uint16 partsCount,
 		uint16 blockCountLock
 	) public payable notTerminated returns (uint256) {
-		validateAccessToBroadcastFeed(isPersonal, feedId);
+		validateAccessToBroadcastFeed(isPersonal, isGenericFeed, feedId);
 
 		uint256 composedFeedId = isPersonal
-			? uint256(sha256(abi.encodePacked(msg.sender, feedId)))
-			: feedId;
+			? uint256(sha256(abi.encodePacked(msg.sender, uint256(1), feedId)))
+			: isGenericFeed
+				? uint256(sha256(abi.encodePacked(address(0x0000000000000000000000000000000000000000), uint256(2), feedId)))
+				: feedId;
 
 		uint256 contentId = buildContentId(
 			msg.sender,
@@ -528,7 +551,7 @@ contract YlideMailerV9 is
 			blockCountLock
 		);
 
-		emitBroadcastPush(msg.sender, composedFeedId, contentId);
+		emitBroadcastPush(msg.sender, composedFeedId, contentId, extraPayment);
 
 		payOut(0, 0, 1);
 		if (!isPersonal) {
