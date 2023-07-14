@@ -592,7 +592,7 @@ contract YlideMailerV9 is
 
 	// Feed management:
 	function createMailingFeed(uint256 uniqueId) public payable returns (uint256) {
-		uint256 feedId = uint256(keccak256(abi.encodePacked(msg.sender, uint256(0), uniqueId)));
+		uint256 feedId = uint256(sha256(abi.encodePacked(msg.sender, uint256(0), uniqueId)));
 
 		if (mailingFeeds[feedId].owner != address(0)) {
 			revert FeedAlreadyExists();
